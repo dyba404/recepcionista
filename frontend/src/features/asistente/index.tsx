@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Bot,
   Lock,
+  PauseCircle,
   RefreshCw,
   Save,
   ShieldCheck,
@@ -15,6 +16,7 @@ import { formatFechaHora } from '@/lib/datetime'
 import {
   esTonoValido,
   useBotConfig,
+  usePauseBot,
   useSaveBotConfig,
 } from '@/hooks/use-botconfig'
 import { useCurrentTenant } from '@/hooks/use-modules'
@@ -31,8 +33,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { ModuleDisabled } from '@/components/module-disabled'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -73,6 +77,10 @@ const TONOS = [
  * éxito; el error del backend se muestra verbatim. Las REGLAS DE SEGURIDAD
  * del bot (anti-fraude, sin prometer cocina) son fijas: nota honesta y
  * jamás editables. El staff ve el candado (patrón Equipo/Pagos).
+ *
+ * Arriba de todo vive el switch "Asistente pausado" (contrato
+ * horarios-pausa-notif-perfil, B): PATCH /api/botconfig {pausado} con
+ * actualización optimista + rollback (usePauseBot).
  */
 export function Asistente() {
   const tenant = useCurrentTenant()
@@ -82,6 +90,7 @@ export function Asistente() {
 
   const configQuery = useBotConfig(tenant)
   const save = useSaveBotConfig(tenant)
+  const pause = usePauseBot(tenant)
 
   const [nombreBot, setNombreBot] = useState('')
   const [saludo, setSaludo] = useState('')
@@ -133,6 +142,9 @@ export function Asistente() {
         saludo: saludoLimpio,
         tono,
         instrucciones_extra: instrucciones.trim(),
+        // El PUT completo reenvía la pausa actual para no reactivar el
+        // bot por accidente al guardar la personalidad (contrato B).
+        pausado: configQuery.data?.pausado ?? false,
       },
       {
         onSuccess: () => {
@@ -156,6 +168,7 @@ export function Asistente() {
       <Header fixed>
         <Search className='me-auto' />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 
@@ -214,7 +227,53 @@ export function Asistente() {
             </Alert>
           ))}
 
-        <div className='mx-auto w-full max-w-3xl'>
+        <div className='mx-auto w-full max-w-3xl space-y-4'>
+          {/* Pausa del bot (contrato B, auto-responder out-of-office):
+              switch grande arriba de todo, optimista + rollback. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <PauseCircle className='size-4 text-primary' />
+                Estado del asistente
+              </CardTitle>
+              <CardDescription>
+                Pausa total: el bot no responde nada (ni carta ni horarios);
+                los mensajes caen al Inbox y el equipo contesta.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {configQuery.isPending ? (
+                <Skeleton className='h-12 w-64' />
+              ) : (
+                <div className='flex items-center gap-4'>
+                  <Switch
+                    aria-label='Asistente pausado'
+                    checked={config?.pausado ?? false}
+                    disabled={!puedeGestionar || pause.isPending}
+                    onCheckedChange={(pausado) => pause.mutate(pausado)}
+                    className='h-7 w-12 [&_[data-slot=switch-thumb]]:size-6 [&_[data-slot=switch-thumb]]:data-[state=checked]:translate-x-[calc(100%-4px)]'
+                  />
+                  <div>
+                    <p
+                      className={`text-base font-bold ${
+                        config?.pausado
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-emerald-600 dark:text-emerald-400'
+                      }`}
+                    >
+                      {config?.pausado ? 'Pausado' : 'Activo'}
+                    </p>
+                    <p className='text-sm text-muted-foreground'>
+                      {config?.pausado
+                        ? 'El bot no responde; los mensajes caen al Inbox y el equipo contesta.'
+                        : 'El bot atiende el chat de cliente con la configuración de abajo.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>

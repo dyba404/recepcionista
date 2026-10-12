@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import unicodedata
 
-from . import bot, data, kb, logic, store
+from . import bot, data, horarios, kb, logic, store
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SANDBOX = os.path.join(BASE, "sandbox")
@@ -273,12 +273,71 @@ def track_reply(tenant: str, customer: str, cart: list) -> dict:
             "cart": cart}
 
 
+# ── gates de horario/pausa (change horarios-pausa-notif-perfil) ─
+
+# Pausa total (contrato B, verbatim): ni NLU de pedido ni KB ni LLM. El
+# mensaje del cliente SÍ queda guardado + unread: eso lo hace siempre
+# whatsapp.process_incoming (el punto único); aquí solo cambia la respuesta.
+PAUSA_REPLY = ("Ahora te está atendiendo el equipo del local. "
+               "Déjanos tu mensaje y te respondemos en breve.")
+
+
+def _saludo(msg: str) -> bool:
+    """Saludo corto, el mismo criterio del NLU (len<=4 + palabra de GREET)."""
+    return len(msg.split()) <= 4 and logic.has_any(msg, logic.GREET)
+
+
+def _intenta_pedido(msg: str, cart: list, st: dict) -> bool:
+    """¿El mensaje es de PEDIDO? (contrato A, clasificación textual): ORDER_V
+    en el texto ("quiero 2 ceviche"), confirmar/pagar CON carrito abierto —
+    incluida una dirección, que el NLU toma como confirmación de pedido — o el
+    flujo de dirección pendiente (lo que sigue ES la dirección del pedido).
+    "menu"/fotos/tracking/KB no llevan ninguna de esas → responden igual
+    abierto o cerrado; la dirección DEL LOCAL es pregunta de KB, no pedido."""
+    if st.get("esperando") == "direccion":
+        return True
+    if logic.has_any(msg, logic.ORDER_V):
+        return True
+    if cart:
+        if (logic.has_any(msg, logic.CONFIRM_PHRASE)
+                or logic.has_word(msg, logic.CONFIRM_WORD)
+                or logic.has_any(msg, logic.PAY_W)):
+            return True
+        if logic.has_any(msg, logic.ADDR_HINT) and logic.kb_intent(msg) is None:
+            return True
+    return False
+
+
+def _cerrado_pedido_reply(mensaje_estado: str, cart: list) -> dict:
+    """Respuesta fija honesta del contrato A: NUNCA toma el pedido cerrado;
+    ofrece la carta y el mensaje. El carrito vuelve intacto."""
+    return {"reply": (f"Estamos cerrados. {mensaje_estado}. "
+                      "Puedo mostrarte la carta o tomar tu mensaje."),
+            "cart": cart}
+
+
 def reply(tenant: str, customer: str, message: str, cart: list) -> dict:
     """NLU determinista primero (0 ms); LLM solo para el long tail."""
     cart = cart or []
     raw = message.strip()
     _msg = logic.norm(raw)
     st = store.client_state(tenant, customer)
+
+    # 0) PAUSA total del bot (contrato B): antes de TODO — ni flujo de
+    # dirección, ni tracking, ni KB, ni NLU, ni LLM. Carrito intacto.
+    if bot.bot_pausado(tenant):
+        return {"reply": PAUSA_REPLY, "cart": cart}
+
+    # 0b) GATE de cerrado (contrato A): ANTES del NLU de pedido. El tracking
+    # (paso 2) y la carta viven igual abierto o cerrado — este gate solo
+    # intercepta mensajes de PEDIDO (clasificación textual, ver helper). El
+    # pedido en curso muere cerrado: el flujo de dirección se limpia para que
+    # el "Puedo mostrarte la carta…" de la respuesta sea de verdad.
+    abierto, mensaje_estado = horarios.estado_local(tenant)
+    if not abierto and _intenta_pedido(_msg, cart, st):
+        if st.get("esperando"):
+            st["esperando"] = None
+        return _cerrado_pedido_reply(mensaje_estado, cart)
 
     # 1) dirección pendiente: el texto libre que sigue ES la dirección
     if st.get("esperando") == "direccion":
@@ -315,8 +374,15 @@ def reply(tenant: str, customer: str, message: str, cart: list) -> dict:
                     "cart": state["cart"]}
         return _pago_reply(tenant, state["cart"], st["direccion"])
 
-    # 5) lo que el NLU sí entendió, sale sin tocar el LLM
+    # 5) lo que el NLU sí entendió, sale sin tocar el LLM. Cerrado + saludo:
+    # el estado encabeza la respuesta ("Estamos cerrados — abrimos a las…");
+    # el resto de la carta responde igual abierto o cerrado (contrato A).
     if not state.get("fallback"):
+        if not abierto and _saludo(_msg):
+            cuando = horarios.abrimos_en(tenant)
+            estado_linea = ("Estamos cerrados — " + cuando) if cuando \
+                else "Estamos cerrados"
+            state["reply"] = estado_linea + "\n\n" + state["reply"]
         if st.get("direccion"):
             state["direccion"] = st["direccion"]
         return state

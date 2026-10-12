@@ -11,7 +11,15 @@ from sqlmodel import Session, select
 from . import data, ws
 from .db import get_session
 from .deps import get_current_user
-from .models import CannedResponse, Conversation, Message, User, conversation_public, message_public
+from .models import (
+    CannedResponse,
+    Conversation,
+    Message,
+    User,
+    conversation_public,
+    message_event,
+    message_public,
+)
 from .modules import gates
 from .whatsapp import send_whatsapp
 
@@ -151,7 +159,8 @@ def note(conv_id: int, payload: NoteIn,
     session.commit()
     session.refresh(msg)
     public = message_public(msg)
-    ws.manager.broadcast("message.created", public, key="message")
+    ws.manager.broadcast("message.created", message_event(msg, conv),
+                         key="message")
     return public
 
 
@@ -183,7 +192,8 @@ def send_human_message(conv_id: int, payload: HumanMessageIn,
     session.commit()
     session.refresh(msg)
     public = message_public(msg)
-    ws.manager.broadcast("message.created", public, key="message")
+    ws.manager.broadcast("message.created", message_event(msg, conv),
+                         key="message")
     ws.manager.broadcast("conversation.updated", _conv_full(session, conv),
                          key="conversation")
     if conv.canal == "whatsapp":

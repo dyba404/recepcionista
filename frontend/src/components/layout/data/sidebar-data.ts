@@ -5,6 +5,7 @@ import {
   BrainCircuit,
   ChefHat,
   ClipboardList,
+  Clock,
   Code,
   CreditCard,
   Inbox,
@@ -134,6 +135,13 @@ export const sidebarData: SidebarData = {
           title: 'Asistente',
           url: '/configuracion/asistente',
           icon: Bot,
+        },
+        {
+          // Horarios de atención (horarios-pausa-notif-perfil): Lun..Dom,
+          // el bot no toma pedidos fuera de horario.
+          title: 'Horarios',
+          url: '/configuracion/horarios',
+          icon: Clock,
         },
         {
           title: 'Pasarela de pagos',

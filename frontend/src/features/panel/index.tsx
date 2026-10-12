@@ -15,6 +15,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { LiveBadge } from '@/components/live-badge'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -148,6 +149,7 @@ export function Panel() {
         <LiveBadge status={wsStatus} className='me-auto' />
         <Search />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

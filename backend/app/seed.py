@@ -3,12 +3,13 @@
 Crea las tablas y deja el login de sandbox: admin@demo.pe / demo1234 (owner)
 y cocina@demo.pe / demo1234 (staff). Además siembra ModuleConfig con TODOS los
 módulos activados para cada tenant (modulos-mvp), la base de conocimiento
-demo del faro (carta-inventario-bot) y un BotConfig por tenant con los
-nombres actuales. Todo POR FILA: re-hidratar jamás recrea lo que ya existe.
+demo del faro (carta-inventario-bot), un BotConfig por tenant con los
+nombres actuales y los horarios 12:00-22:00 de Lun a Dom (horarios-pausa-
+notif-perfil). Todo POR FILA: re-hidratar jamás recrea lo que ya existe.
 """
 from sqlmodel import Session, select
 
-from . import bot, data, modules, security
+from . import bot, data, horarios, modules, security
 from .db import engine, init_db
 from .models import BotConfig, KnowledgeEntry, ModuleConfig, User
 
@@ -62,4 +63,8 @@ def run() -> None:
                                           tid, "FaroBot"),
                                       saludo=t["saludo"], tono="cercano",
                                       instrucciones_extra=""))
+        # Horarios: 7 filas por local (Lun..Dom activo 12:00-22:00), el mismo
+        # default con el que opera estado_local cuando faltan (horarios.py).
+        for tid in data.TENANTS:
+            horarios.seed_horarios(session, tid)
         session.commit()

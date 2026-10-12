@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import Session
 
-from . import data, persist
+from . import data, horarios, persist
 from .db import get_session
 from .deps import check_tenant_owner, require_owner
 from .models import Tenant, User
@@ -64,6 +64,9 @@ def crear_tenant(session: Session, nombre: str, distrito: str,
                tiempo=tiempo, yape_qr=yape_qr,
                saludo=f"Hola! Soy el asistente de {nombre}. ¿Te muestro la carta?")
     session.add(t)
+    # horarios-pausa-notif-perfil: el local nace con sus 7 filas de horario
+    # (12:00-22:00 activo) — mismo seed que seed.run da a los 3 demo.
+    horarios.seed_horarios(session, t.id)
     return t
 
 

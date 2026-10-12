@@ -1,5 +1,6 @@
 import { RefreshCw, Store } from 'lucide-react'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
@@ -24,6 +25,7 @@ export function Locales() {
       <Header fixed>
         <Search className='me-auto' />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

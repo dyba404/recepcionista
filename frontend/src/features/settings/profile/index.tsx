@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Info, RefreshCw, Store, UserCog } from 'lucide-react'
+import { KeyRound, RefreshCw, Store, UserCog } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { AuthUser } from '@/lib/types'
 import { useTenants } from '@/hooks/use-tenants'
@@ -16,11 +17,16 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ContentSection } from '../components/content-section'
+import { CambiarPasswordDialog } from './components/cambiar-password-dialog'
+import { EditarNombreDialog } from './components/editar-nombre-dialog'
 
 /**
- * Perfil SOLO LECTURA con datos reales: GET /api/auth/me (sesión) y el
- * local correspondiente de GET /api/tenants (delivery, tiempo, yape_qr).
- * La edición de perfil todavía no existe en la API de settings.
+ * Perfil (contrato horarios-pausa-notif-perfil, D): datos reales de
+ * GET /api/auth/me + local de GET /api/tenants.
+ * - "Datos": nombre editable (Dialog → PATCH /api/auth/me {nombre}).
+ * - "Contraseña": Dialog actual/nueva/confirmar con validación client y
+ *   error verbatim del backend ("Contraseña actual incorrecta").
+ * El local sigue siendo solo lectura (se edita en /locales).
  */
 
 function Fila({
@@ -39,6 +45,12 @@ function Fila({
 }
 
 export function SettingsProfile() {
+  const [editarOpen, setEditarOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  /** Sesión de edición: remonta el dialog con estado fresco (patrón carta). */
+  const [sesionNombre, setSesionNombre] = useState(0)
+  const [sesionPassword, setSesionPassword] = useState(0)
+
   const {
     data: me,
     isPending,
@@ -73,7 +85,7 @@ export function SettingsProfile() {
   return (
     <ContentSection
       title='Perfil'
-      desc='Tu cuenta y los datos del local que administras (solo lectura).'
+      desc='Tu cuenta y los datos del local que administras.'
     >
       {isError && (
         <Alert variant='destructive' className='mb-6'>
@@ -102,18 +114,49 @@ export function SettingsProfile() {
           <Card>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
-                <UserCog className='size-4 text-muted-foreground' /> Cuenta
+                <UserCog className='size-4 text-muted-foreground' /> Datos
               </CardTitle>
               <CardDescription>
-                Datos de tu usuario en el demo sandbox.
+                Tu nombre y email de acceso (el email no se cambia).
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className='space-y-4'>
               <dl className='space-y-3'>
                 <Fila label='Nombre'>{me.nombre}</Fila>
                 <Fila label='Email'>{me.email}</Fila>
                 <Fila label='Rol'>{rolBadge}</Fila>
               </dl>
+              <Button
+                onClick={() => {
+                  setSesionNombre((n) => n + 1)
+                  setEditarOpen(true)
+                }}
+              >
+                Editar
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <KeyRound className='size-4 text-muted-foreground' />{' '}
+                Contraseña
+              </CardTitle>
+              <CardDescription>
+                Cambia tu contraseña; tu sesión actual sigue abierta.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant='outline'
+                onClick={() => {
+                  setSesionPassword((n) => n + 1)
+                  setPasswordOpen(true)
+                }}
+              >
+                Cambiar contraseña
+              </Button>
             </CardContent>
           </Card>
 
@@ -123,7 +166,8 @@ export function SettingsProfile() {
                 <Store className='size-4 text-muted-foreground' /> Local
               </CardTitle>
               <CardDescription>
-                Configuración operativa del local (GET /api/tenants).
+                Configuración operativa del local (solo lectura; se edita en
+                Locales).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -152,17 +196,20 @@ export function SettingsProfile() {
               )}
             </CardContent>
           </Card>
-
-          <Alert>
-            <Info className='size-4' />
-            <AlertTitle>Solo lectura</AlertTitle>
-            <AlertDescription>
-              La edición de perfil llega con la API de settings — por ahora
-              estos datos son de solo lectura.
-            </AlertDescription>
-          </Alert>
         </div>
       ) : null}
+
+      <EditarNombreDialog
+        key={`nombre-${sesionNombre}`}
+        open={editarOpen}
+        onOpenChange={setEditarOpen}
+        nombreActual={me?.nombre ?? ''}
+      />
+      <CambiarPasswordDialog
+        key={`password-${sesionPassword}`}
+        open={passwordOpen}
+        onOpenChange={setPasswordOpen}
+      />
 
       <Separator className='mt-8' />
     </ContentSection>

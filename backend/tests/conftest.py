@@ -9,6 +9,7 @@ app/__init__.py carga backend/.env en este punto (python-dotenv, override=False)
 import os
 import tempfile
 import uuid
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,7 +19,8 @@ os.environ["AUTH_DB_PATH"] = os.path.join(
 os.environ.setdefault("UPLOADS_DIR", os.path.join(
     tempfile.mkdtemp(prefix="faro-test-uploads-")))  # saas-cola-2: QR de tests
 
-from app.main import app  # noqa: E402 — después de AUTH_DB_PATH, a propósito
+from app import horarios  # noqa: E402 — después de AUTH_DB_PATH, a propósito
+from app.main import app  # noqa: E402
 
 client = TestClient(app)
 
@@ -74,3 +76,19 @@ def _modules_on():
                 else:
                     cfg.enabled = True
         session.commit()
+
+
+# DECISIÓN (contrato horarios-pausa-notif-perfil): el gate de cerrado de
+# brain.reply haría que los ~159 tests de flujo de chat/pedido dependieran de
+# la HORA REAL de Lima en que corre la suite — "confirmar" de madrugada
+# contestaría "Estamos cerrados" y el pedido no se tomaría. Se fija la hora
+# ABIERTA (lunes 15:00, dentro de la ventana 12:00-22:00 del seed) para toda
+# la suite, monkeypatcheando el ÚNICO punto que lee el reloj del sistema
+# (horarios.hora_lima — ver su docstring sobre inyectabilidad). Los tests del
+# change re-fijan la hora con su propio monkeypatch (fixture de módulo).
+HORA_ABIERTA = datetime(2026, 10, 12, 15, 0)  # lunes 15:00 hora Lima
+
+
+@pytest.fixture(autouse=True)
+def _hora_abierta(monkeypatch):
+    monkeypatch.setattr(horarios, "hora_lima", lambda: HORA_ABIERTA)

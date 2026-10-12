@@ -6,6 +6,7 @@ import { SearchProvider } from '@/context/search-provider'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SkipToMain } from '@/components/skip-to-main'
+import { useNotifications } from '@/hooks/use-notifications'
 
 type AuthenticatedLayoutProps = {
   children?: React.ReactNode
@@ -13,6 +14,11 @@ type AuthenticatedLayoutProps = {
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const defaultOpen = getCookie('sidebar_state') !== 'false'
+  // Campana de notificaciones (contrato horarios-pausa-notif-perfil): se
+  // monta UNA sola vez aquí — junto al sidebar, que ya abre el WS
+  // compartido. El hook suma +1 al refcount del MISMO socket (nunca un
+  // segundo socket) y alimenta el store en memoria que lee la campana.
+  useNotifications()
   return (
     <SearchProvider>
       <LayoutProvider>

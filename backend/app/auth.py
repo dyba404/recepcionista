@@ -1,5 +1,6 @@
 """Rutas /api/auth/*: registro, login y perfil (ADR 0002; saas-cola-2 añade
-el registro CON negocio: crea el local y al owner de él en una transacción)."""
+el registro CON negocio: crea el local y al owner de él en una transacción;
+horarios-pausa-notif-perfil añade PATCH /me para nombre y contraseña)."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
@@ -8,7 +9,7 @@ from . import persist, security, tenants
 from .db import get_session
 from .deps import get_current_user
 from .models import User
-from .schemas import NegocioIn
+from .schemas import AuthMePatchIn, NegocioIn
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -74,4 +75,31 @@ def login(payload: LoginIn, session: Session = Depends(get_session)):
 
 @router.get("/me")
 def me(user: User = Depends(get_current_user)):
+    return user_public(user)
+
+
+@router.patch("/me")
+def patch_me(payload: AuthMePatchIn,
+             user: User = Depends(get_current_user),
+             session: Session = Depends(get_session)):
+    """Edición del propio perfil (contrato D, horarios-pausa-notif-perfil):
+    - nombre: siempre editable, SIN contraseña.
+    - password_nueva (min 8, 422 en el schema): exige password_actual
+      correcta → 400 {"detail": "Contraseña actual incorrecta"} si falta
+      o no coincide (mensaje verbatim, el front lo pega tal cual).
+
+    NOTA (JWT stateless): cambiar la contraseña NO invalida el token viejo —
+      sigue válido hasta su exp (24 h). Aceptado a propósito en este
+      prototipo: no hay lista de revocación y el dueño puede reloguear.
+    Devuelve el user actualizado (misma forma que GET /me)."""
+    if payload.nombre is not None:
+        user.nombre = payload.nombre.strip()
+    if payload.password_nueva is not None:
+        if not payload.password_actual or not security.verify_password(
+                payload.password_actual, user.password_hash):
+            raise HTTPException(400, "Contraseña actual incorrecta")
+        user.password_hash = security.hash_password(payload.password_nueva)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
     return user_public(user)

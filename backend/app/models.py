@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 # rol: "owner" (dueño del tenant) | "admin" | "staff" (cocina, delivery).
@@ -157,15 +158,34 @@ class KnowledgeEntry(SQLModel, table=True):
 
 # BotConfig = el "Asistente" configurable por dueño (patrón asistente): campos
 # seguros (persona/tono/instrucciones) que SE AÑADEN a las REGLAS del sistema,
-# jamás las reemplazan. tono se valida Literal en el schema del PUT (la tabla
+# jamás los reemplazan. tono se valida Literal en el schema del PUT (la tabla
 # guarda str para no amarrar la migración a un enum de SQL).
+# pausado (horarios-pausa-notif-perfil): auto-respuesta out-of-office TOTAL —
+# el bot ni pide ni responde KB; los mensajes caen al Inbox y contesta el equipo.
 class BotConfig(SQLModel, table=True):
     tenant_id: str = Field(primary_key=True)
     nombre_bot: str
     saludo: str = Field(default="")
     tono: str = Field(default="cercano")  # cercano | formal | divertido
     instrucciones_extra: str = Field(default="")  # máx 800 (422 en el PUT)
+    pausado: bool = Field(default=False)  # change horarios-pausa-notif-perfil
     updated_at: datetime = Field(default_factory=_now)
+
+
+# ── horarios de atención (change horarios-pausa-notif-perfil) ──
+
+# Horario = patrón Chatwoot working hours: UNA fila por (tenant, día) con su
+# ventana "HH:MM". dia: 0=Lunes..6=Domingo (weekday() de Python, que es el que
+# compara estado_local). activo=False cierra el día completo. Sin filas (tenant
+# recién nacido antes del seed): horarios.py cae al DEFAULT 12:00-22:00 activo.
+class Horario(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("tenant_id", "dia"),)
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    dia: int  # 0=Lunes..6=Domingo
+    activo: bool = True
+    apertura: str = "12:00"  # "HH:MM" hora local del local (America/Lima)
+    cierre: str = "22:00"
 
 
 # ── locales + ledger (change saas-cola-2: SaaS de verdad) ──
@@ -217,3 +237,12 @@ def conversation_public(c: Conversation) -> dict:
 def message_public(m: Message) -> dict:
     return {"id": m.id, "conversation_id": m.conversation_id, "role": m.role,
             "body": m.body, "created_at": m.created_at.isoformat()}
+
+
+def message_event(m: Message, conv: Conversation) -> dict:
+    """Payload del evento WS message.created (change horarios-pausa-notif-perfil):
+    message_public + tenant_id y cliente (nombre), para que el frontend filtre
+    por tenant y arme la campana de notificaciones. SOLO el evento WS cambia;
+    el HTTP de /messages sigue con message_public (159 tests intactos)."""
+    return {**message_public(m), "tenant_id": conv.tenant_id,
+            "cliente": conv.cliente}

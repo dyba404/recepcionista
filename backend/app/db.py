@@ -24,6 +24,8 @@ engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread"
 _COLUMNS = [
     # (tabla, columna, DDL del ALTER)
     ("menuitem", "stock", "INTEGER"),
+    # horarios-pausa-notif-perfil: pausa del bot en la fila del Asistente
+    ("botconfig", "pausado", "BOOLEAN NOT NULL DEFAULT 0"),
 ]
 
 

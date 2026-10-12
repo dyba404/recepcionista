@@ -33,6 +33,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
@@ -101,6 +102,7 @@ export function Modulos() {
       <Header fixed>
         <Search className='me-auto' />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

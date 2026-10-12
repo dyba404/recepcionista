@@ -31,6 +31,7 @@ import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_auth
 import { Route as AuthenticatedConfiguracionAsistenteIndexRouteImport } from './routes/_authenticated/configuracion/asistente/index'
 import { Route as AuthenticatedConfiguracionConocimientoIndexRouteImport } from './routes/_authenticated/configuracion/conocimiento/index'
 import { Route as AuthenticatedConfiguracionEquipoIndexRouteImport } from './routes/_authenticated/configuracion/equipo/index'
+import { Route as AuthenticatedConfiguracionHorariosIndexRouteImport } from './routes/_authenticated/configuracion/horarios/index'
 import { Route as AuthenticatedConfiguracionModulosIndexRouteImport } from './routes/_authenticated/configuracion/modulos/index'
 import { Route as AuthenticatedConfiguracionPagosIndexRouteImport } from './routes/_authenticated/configuracion/pagos/index'
 import { Route as AuthenticatedConfiguracionWhatsappIndexRouteImport } from './routes/_authenticated/configuracion/whatsapp/index'
@@ -157,6 +158,12 @@ const AuthenticatedConfiguracionEquipoIndexRoute =
     path: '/configuracion/equipo/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracionHorariosIndexRoute =
+  AuthenticatedConfiguracionHorariosIndexRouteImport.update({
+    id: '/configuracion/horarios/',
+    path: '/configuracion/horarios/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracionModulosIndexRoute =
   AuthenticatedConfiguracionModulosIndexRouteImport.update({
     id: '/configuracion/modulos/',
@@ -210,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/configuracion/asistente/': typeof AuthenticatedConfiguracionAsistenteIndexRoute
   '/configuracion/conocimiento/': typeof AuthenticatedConfiguracionConocimientoIndexRoute
   '/configuracion/equipo/': typeof AuthenticatedConfiguracionEquipoIndexRoute
+  '/configuracion/horarios/': typeof AuthenticatedConfiguracionHorariosIndexRoute
   '/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -237,6 +245,7 @@ export interface FileRoutesByTo {
   '/configuracion/asistente': typeof AuthenticatedConfiguracionAsistenteIndexRoute
   '/configuracion/conocimiento': typeof AuthenticatedConfiguracionConocimientoIndexRoute
   '/configuracion/equipo': typeof AuthenticatedConfiguracionEquipoIndexRoute
+  '/configuracion/horarios': typeof AuthenticatedConfiguracionHorariosIndexRoute
   '/configuracion/modulos': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/configuracion/whatsapp': typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -267,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/configuracion/asistente/': typeof AuthenticatedConfiguracionAsistenteIndexRoute
   '/_authenticated/configuracion/conocimiento/': typeof AuthenticatedConfiguracionConocimientoIndexRoute
   '/_authenticated/configuracion/equipo/': typeof AuthenticatedConfiguracionEquipoIndexRoute
+  '/_authenticated/configuracion/horarios/': typeof AuthenticatedConfiguracionHorariosIndexRoute
   '/_authenticated/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/_authenticated/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/_authenticated/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/configuracion/asistente/'
     | '/configuracion/conocimiento/'
     | '/configuracion/equipo/'
+    | '/configuracion/horarios/'
     | '/configuracion/modulos/'
     | '/configuracion/pagos/'
     | '/configuracion/whatsapp/'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/configuracion/asistente'
     | '/configuracion/conocimiento'
     | '/configuracion/equipo'
+    | '/configuracion/horarios'
     | '/configuracion/modulos'
     | '/configuracion/pagos'
     | '/configuracion/whatsapp'
@@ -353,6 +365,7 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracion/asistente/'
     | '/_authenticated/configuracion/conocimiento/'
     | '/_authenticated/configuracion/equipo/'
+    | '/_authenticated/configuracion/horarios/'
     | '/_authenticated/configuracion/modulos/'
     | '/_authenticated/configuracion/pagos/'
     | '/_authenticated/configuracion/whatsapp/'
@@ -527,6 +540,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracionEquipoIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracion/horarios/': {
+      id: '/_authenticated/configuracion/horarios/'
+      path: '/configuracion/horarios'
+      fullPath: '/configuracion/horarios/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionHorariosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracion/modulos/': {
       id: '/_authenticated/configuracion/modulos/'
       path: '/configuracion/modulos'
@@ -595,6 +615,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracionAsistenteIndexRoute: typeof AuthenticatedConfiguracionAsistenteIndexRoute
   AuthenticatedConfiguracionConocimientoIndexRoute: typeof AuthenticatedConfiguracionConocimientoIndexRoute
   AuthenticatedConfiguracionEquipoIndexRoute: typeof AuthenticatedConfiguracionEquipoIndexRoute
+  AuthenticatedConfiguracionHorariosIndexRoute: typeof AuthenticatedConfiguracionHorariosIndexRoute
   AuthenticatedConfiguracionModulosIndexRoute: typeof AuthenticatedConfiguracionModulosIndexRoute
   AuthenticatedConfiguracionPagosIndexRoute: typeof AuthenticatedConfiguracionPagosIndexRoute
   AuthenticatedConfiguracionWhatsappIndexRoute: typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -617,6 +638,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedConfiguracionConocimientoIndexRoute,
   AuthenticatedConfiguracionEquipoIndexRoute:
     AuthenticatedConfiguracionEquipoIndexRoute,
+  AuthenticatedConfiguracionHorariosIndexRoute:
+    AuthenticatedConfiguracionHorariosIndexRoute,
   AuthenticatedConfiguracionModulosIndexRoute:
     AuthenticatedConfiguracionModulosIndexRoute,
   AuthenticatedConfiguracionPagosIndexRoute:

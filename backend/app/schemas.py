@@ -12,7 +12,7 @@ llega como string y se valida igual que cuando el payload era un dict.
 """
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # ── chat (ex main.py) ──
 
@@ -180,9 +180,58 @@ class BotConfigPutIn(BaseModel):
     """PUT del Asistente: todo opcional salvo el tenant (PUT parcial sobre la
     fila; los campos ausentes quedan como están). tono es Literal (422 con
     otro valor) e instrucciones_extra máx 800 chars (422 si excede) —
-    contrato explícito del change."""
+    contrato explícito del change. horarios-pausa-notif-perfil añade pausado
+    (ausente → queda como está; el toggle dedicado es el PATCH de abajo)."""
     tenant: str
     nombre_bot: str | None = Field(default=None, min_length=1)
     saludo: str | None = None
     tono: Literal["cercano", "formal", "divertido"] | None = None
     instrucciones_extra: str | None = Field(default=None, max_length=800)
+    pausado: bool | None = None
+
+
+class BotConfigPatchIn(BaseModel):
+    """PATCH del Asistente (horarios-pausa-notif-perfil): el switch "Asistente
+    pausado" de la UI. Todo opcional; hoy solo pausado."""
+    tenant: str
+    pausado: bool | None = None
+
+
+# ── horarios de atención (horarios-pausa-notif-perfil) ──
+
+HHMM = r"^(?:[01]\d|2[0-3]):[0-5]\d$"  # "12:00" sí, "9:30"/"24:00" no
+
+
+class HorarioDiaIn(BaseModel):
+    """Un día del PATCH /api/horarios: dia 0=Lunes..6=Domingo (422 fuera de
+    rango), apertura/cierre "HH:MM" validadas por pattern, y apertura<cierre
+    por validador cruzado (422 si la ventana es nula o invertida)."""
+    dia: int = Field(ge=0, le=6)
+    activo: bool
+    apertura: str = Field(pattern=HHMM)
+    cierre: str = Field(pattern=HHMM)
+
+    @model_validator(mode="after")
+    def _ventana_valida(self):
+        if self.apertura >= self.cierre:
+            raise ValueError("apertura debe ser menor que cierre")
+        return self
+
+
+class HorariosPatchIn(BaseModel):
+    """Upsert de horarios: {tenant, dias:[{dia,activo,apertura,cierre}…]} — el
+    PUT del front manda los 7; el backend upserta los que vengan (parcial es
+    válido). La validación completa (rango, HH:MM, apertura<cierre) es 422."""
+    tenant: str
+    dias: list[HorarioDiaIn] = Field(min_length=1)
+
+
+# ── perfil (horarios-pausa-notif-perfil) ──
+
+class AuthMePatchIn(BaseModel):
+    """PATCH /api/auth/me: nombre siempre editable (sin contraseña); cambiar
+    la contraseña exige password_actual (400 si falta o no coincide) y
+    password_nueva min 8 (422)."""
+    nombre: str | None = Field(default=None, min_length=1)
+    password_actual: str | None = None
+    password_nueva: str | None = Field(default=None, min_length=8)

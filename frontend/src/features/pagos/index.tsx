@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { ModuleDisabled } from '@/components/module-disabled'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -101,6 +102,7 @@ export function PasarelaPagos() {
       <Header fixed>
         <Search className='me-auto' />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

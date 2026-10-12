@@ -18,6 +18,12 @@ const BACKOFF_MS = [1_000, 2_000, 5_000] // backoff 1s → 2s → 5s (tope 5s)
  * - message.created → invalida ['messages'] (hilo abierto) y
  *   ['conversations'] (last_body / unread).
  *
+ * Además del uso como hook (useOrdersWs), el singleton expone
+ * `subscribeWsMessages(listener)` para que OTROS consumidores (la campana
+ * de notificaciones, contrato horarios-pausa-notif-perfil) reciban los
+ * mismos mensajes por fan-out SIN abrir un segundo socket: el listener
+ * vive mientras exista la conexión compartida del sidebar.
+ *
  * Reconexión con backoff; el estado ('en vivo' / 'caido' / 'conectando')
  * se publica vía useSyncExternalStore para el LiveBadge del header.
  */
@@ -31,6 +37,22 @@ let reconnectTimer: number | undefined
 let queryClient: QueryClient | null = null
 let status: WsStatus = 'caido'
 const statusListeners = new Set<() => void>()
+/** Fan-out de mensajes crudos del WS (campana de notificaciones). */
+const messageListeners = new Set<(msg: WsMessage) => void>()
+
+/**
+ * Recibe TODOS los mensajes del socket compartido (sin abrir otro).
+ * Devuelve la función de limpieza. Los listeners viven a nivel de módulo:
+ * la conexión sigue siendo UNA, con refcount de useOrdersWs.
+ */
+export function subscribeWsMessages(
+  listener: (msg: WsMessage) => void
+): () => void {
+  messageListeners.add(listener)
+  return () => {
+    messageListeners.delete(listener)
+  }
+}
 
 function publicarStatus(next: WsStatus) {
   if (status === next) return
@@ -54,6 +76,8 @@ function handleMessage(ev: MessageEvent) {
   } catch {
     return // mensaje corrupto: ignorar
   }
+  // Fan-out primero: la campana no depende del QueryClient.
+  messageListeners.forEach((listener) => listener(msg))
   if (!queryClient) return
 
   switch (msg.event) {

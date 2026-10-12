@@ -24,6 +24,7 @@ import {
   YAxis,
 } from 'recharts'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { OrderPagoBadge } from '@/components/order-pago-badge'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -147,6 +148,7 @@ export function Dashboard() {
       <Header fixed>
         <Search className='me-auto' />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

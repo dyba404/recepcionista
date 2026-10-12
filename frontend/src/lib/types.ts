@@ -282,6 +282,13 @@ export interface Message {
   role: MessageRole
   body: string
   created_at: string
+  /**
+   * Solo en el payload WS message.created (contrato
+   * horarios-pausa-notif-perfil): tenant emisor y nombre del cliente,
+   * para que la campana filtre por tenant actual.
+   */
+  tenant_id?: string
+  cliente?: string
 }
 
 /** GET /api/canned?tenant= — respuestas rápidas */
@@ -339,5 +346,62 @@ export interface BotConfig {
   saludo: string
   tono: BotTono
   instrucciones_extra: string
+  /**
+   * Contrato horarios-pausa-notif-perfil (auto-responder out-of-office):
+   * true = el bot no responde; los mensajes caen al Inbox y contesta el
+   * equipo. Opcional porque un backend viejo en vivo no lo trae.
+   */
+  pausado?: boolean
   updated_at?: string
+}
+
+/* ============================================================
+ * Contrato "horarios-pausa-notif-perfil": horarios de atención,
+ * pausa del bot, notificaciones y perfil editable
+ * (openspec/changes/horarios-pausa-notif-perfil/proposal.md)
+ * ============================================================ */
+
+/**
+ * Horario de UN día de la semana (patrón Chatwoot working hours).
+ * dia: 0=Lunes .. 6=Domingo; apertura/cierre "HH:MM" (hora local Lima).
+ */
+export interface HorarioDia {
+  id?: number | string
+  dia: number // 0=Lunes .. 6=Domingo
+  activo: boolean
+  apertura: string // "HH:MM"
+  cierre: string // "HH:MM"
+}
+
+/**
+ * GET /api/horarios?tenant= (Bearer) → las 7 filas (Lun..Dom) + el estado
+ * actual calculado por el backend según hora local:
+ * abierto_ahora ("Abierto — cierra a las 22:00" / "Cerrado — abre el
+ * lunes a las 12:00"…).
+ */
+export interface HorariosResp {
+  dias: HorarioDia[]
+  abierto_ahora: boolean
+  mensaje_estado: string
+}
+
+/** Tipo de notificación de la campana (icono+color por tipo). */
+export type NotificationTipo =
+  | 'pedido' // nuevo pedido — ClipboardList
+  | 'pago' // pago verificado — BadgeCheck emerald
+  | 'fraude' // posible voucher falso — ShieldAlert rojo
+  | 'mensaje' // mensaje de cliente — MessageCircle
+  | 'estado' // pedido avanzó de estado — ArrowRight
+
+/**
+ * Notificación en memoria de sesión (campana del header). `ruta` es a dónde
+ * navega el click: /panel para pedidos/pagos/fraude, /inbox para mensajes.
+ */
+export interface NotificationItem {
+  id: string
+  tipo: NotificationTipo
+  texto: string
+  /** Ruta al hacer click (con búsqueda si aplica). */
+  ruta: string
+  createdAt: string // ISO
 }

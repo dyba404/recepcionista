@@ -22,6 +22,7 @@ from . import (  # noqa: F401 — import dispara los routers de dominio
     bot,
     chat,
     demo,
+    horarios,
     inbox,
     kb,
     menu,
@@ -56,8 +57,9 @@ app.include_router(chat.router)
 app.include_router(menu.router)
 app.include_router(tenants.router)
 app.include_router(staff.router)
-app.include_router(bot.router)  # Asistente: GET/PUT /api/botconfig
+app.include_router(bot.router)  # Asistente: GET/PUT/PATCH /api/botconfig
 app.include_router(kb.router)  # base de conocimiento del local
+app.include_router(horarios.router)  # horarios de atención del local
 app.include_router(demo.router)
 
 # estáticos del repo: ya SOLO sirven las fotos de platos (static/img);

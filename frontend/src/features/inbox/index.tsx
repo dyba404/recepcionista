@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { LiveBadge } from '@/components/live-badge'
 import { ModuleDisabled } from '@/components/module-disabled'
@@ -93,6 +94,7 @@ export function Inbox() {
         <LiveBadge status={wsStatus} className='me-auto' />
         <Search />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

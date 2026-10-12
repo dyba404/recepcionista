@@ -33,7 +33,7 @@ from .models import (
     User,
     WhatsAppChannel,
     conversation_public,
-    message_public,
+    message_event,
 )
 from .modules import gates
 from .roles import require_perm
@@ -146,6 +146,9 @@ def process_incoming(tenant: str, canal: str, wa_id: str, name: str, text: str,
     - estado "bot" → brain.reply → Message(role bot) → send_whatsapp si el canal
       es whatsapp. El canal demo NO envía: devuelve la respuesta al endpoint
       (/api/chat la responde al simulador).
+    - horarios-pausa-notif-perfil: brain.reply puede contestar las FIJAS de
+      pausa/cerrado; el guardado del mensaje del cliente + unread + broadcasts
+      ya ocurrieron ARRIBA, así que pasan SIEMPRE — solo cambia la respuesta.
     - Devuelve el result de brain.reply (reply/cart/next/...) o None si el
       humano tiene el control.
 
@@ -178,7 +181,9 @@ def process_incoming(tenant: str, canal: str, wa_id: str, name: str, text: str,
         asig = session.get(User, conv.assigned_to) if conv.assigned_to else None
         public["assigned_nombre"] = asig.nombre if asig else None
         ws.manager.broadcast("conversation.updated", public, key="conversation")
-        ws.manager.broadcast("message.created", message_public(msg), key="message")
+        # message.created lleva tenant_id/cliente (contrato notificaciones)
+        ws.manager.broadcast("message.created", message_event(msg, conv),
+                             key="message")
         if conv.estado == "humano":
             return None  # handoff: el operador tiene el control, el bot espera
         result = brain.reply(tenant, wa_id, text, cart or [])
@@ -191,7 +196,8 @@ def process_incoming(tenant: str, canal: str, wa_id: str, name: str, text: str,
         session.add(conv)
         session.commit()
         session.refresh(bot)
-        ws.manager.broadcast("message.created", message_public(bot), key="message")
+        ws.manager.broadcast("message.created", message_event(bot, conv),
+                             key="message")
         if canal == "whatsapp":
             try:
                 send_whatsapp(tenant, wa_id, reply_text)

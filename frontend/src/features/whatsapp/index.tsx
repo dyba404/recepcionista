@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Header } from '@/components/layout/header'
+import { NotificationsBell } from '@/components/layout/notifications-bell'
 import { Main } from '@/components/layout/main'
 import { ModuleDisabled } from '@/components/module-disabled'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -49,6 +50,7 @@ export function ConectarWhatsapp() {
       <Header fixed>
         <Search className='me-auto' />
         <ThemeSwitch />
+        <NotificationsBell />
         <ProfileDropdown />
       </Header>
 

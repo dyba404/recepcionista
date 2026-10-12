@@ -6,12 +6,15 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
   SidebarRail,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { BrandHeader } from './brand-header'
 import { sidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
+import { NotificationsBellMenuItem } from './notifications-bell'
 import type { NavGroup as NavGroupProps } from './types'
 import { useModules, MODULE_KEYS } from '@/hooks/use-modules'
 import { useOrdersWs } from '@/hooks/use-orders-ws'
@@ -32,6 +35,7 @@ const GRUPO_GESTION = 'Gestión'
  */
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
+  const { isMobile } = useSidebar()
   const authUser = useAuthStore((s) => s.auth.user)
   const { isEnabled } = useModules()
   useOrdersWs() // conexión live compartida por todas las páginas
@@ -96,6 +100,13 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter>
+        {/* Campana en el MENÚ MÓVIL (en el sidebar desktop y en el header
+            de cada página no hace falta: el header ya la lleva). */}
+        {isMobile && (
+          <SidebarMenu>
+            <NotificationsBellMenuItem />
+          </SidebarMenu>
+        )}
         <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />

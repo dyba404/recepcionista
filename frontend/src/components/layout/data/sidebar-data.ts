@@ -4,6 +4,7 @@ import {
   ChefHat,
   ClipboardList,
   Code,
+  CreditCard,
   Inbox,
   LayoutDashboard,
   LifeBuoy,
@@ -22,7 +23,8 @@ import { type SidebarData } from '../types'
  * - Mensajería: Inbox (handoff humano
  *   con badge de no leídos — inyectado en vivo desde AppSidebar).
  * - Gestión: Panel kanban de pedidos, Cocina (KDS) y Carta.
- * - Configuración: Ajustes (perfil/apariencia) y Módulos (toggles owner).
+ * - Configuración: Ajustes (perfil/apariencia), Canal de WhatsApp,
+ *   Pasarela de pagos (Culqi) y Módulos (toggles owner).
  * - Ayuda: enlaces reales del template (repo e issues de shadcn-admin).
  *
  * El gating por módulos (ocultar Mensajería/Cocina/Carta) lo aplica
@@ -114,6 +116,11 @@ export const sidebarData: SidebarData = {
           icon: PlugZap,
         },
         {
+          title: 'Pasarela de pagos',
+          url: '/configuracion/pagos',
+          icon: CreditCard,
+        },
+        {
           title: 'Módulos',
           url: '/configuracion/modulos',
           icon: Blocks,
@@ -128,11 +135,11 @@ export const sidebarData: SidebarData = {
           url: 'https://github.com/satnaing/shadcn-admin/issues',
           icon: LifeBuoy,
         },
-            {
-              title: 'Repositorio',
-              url: 'https://github.com/satnaing/shadcn-admin',
-              icon: Code,
-            },
+        {
+          title: 'Repositorio',
+          url: 'https://github.com/satnaing/shadcn-admin',
+          icon: Code,
+        },
       ],
     },
   ],

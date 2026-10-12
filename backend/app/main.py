@@ -1,14 +1,11 @@
-import json
 import os
-import urllib.error
-import urllib.request
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import brain, data, inbox, logic, modules, persist, seed, store, whatsapp, ws
+from . import brain, data, inbox, logic, modules, payments, persist, seed, store, whatsapp, ws
 from .auth import router as auth_router
 from .deps import get_current_user
 
@@ -25,6 +22,7 @@ app.include_router(modules.router)
 app.include_router(inbox.router)
 app.include_router(whatsapp.router)
 app.include_router(whatsapp.webhook_router)
+app.include_router(payments.router)  # cuenta Culqi por local (pasarela-culqi)
 
 class ChatIn(BaseModel):
     tenant: str
@@ -186,12 +184,19 @@ def culqi_link(p: CulqiLinkIn):
 
 @app.get("/api/payments/config")
 def pay_config(tenant: str):
-    """Qué puede ofrecer el front: Culqi REAL (si hay llaves) o simulado."""
+    """Qué puede ofrecer el front: Culqi REAL por LOCAL (la cuenta del tenant,
+    con su pk completa para culqi.js) o SIMULADO (caída a la env CULQI_PUBLIC_KEY
+    del prototipo, una sola cuenta compartida)."""
     t = data.TENANTS.get(tenant)
     if not t:
         raise HTTPException(404, "tenant?")
     modules.gates(tenant, "pagos")  # gating real del módulo
-    return {"culqi_pk": os.environ.get("CULQI_PUBLIC_KEY", ""),
+    cuenta = payments.get_account(tenant)
+    return {"culqi_pk": (cuenta.public_key if cuenta
+                         else os.environ.get("CULQI_PUBLIC_KEY", "")),
+            "culqi_estado": "conectada" if cuenta else "simulada",
+            "culqi_pk_enmascarada": (payments.enmascarar_pk(cuenta.public_key)
+                                      if cuenta else None),
             "yape_qr": t["yape_qr"], "tenant": t["nombre"]}
 
 
@@ -199,32 +204,33 @@ def pay_config(tenant: str):
 def culqi_charge(c: CulqiChargeIn):
     """Cargo REAL en Culqi sandbox: el token viene del checkout culqi.js y la
     verificación la hace el SERVIDOR contra la API de Culqi. Sin dinero real
-    (llaves pk_test/sk_test), pero el flujo de verificación es el de producción."""
+    (llaves pk_test/sk_test), pero el flujo de verificación es el de producción.
+
+    La secret sale de la cuenta Culqi DEL TENANT DEL PEDIDO (resuelta desde el
+    pedido: el charge recibe {order_id, token}, y el order lleva tenant_id).
+    FALLBACK: sin cuenta configurada se usa la env CULQI_SECRET_KEY — el
+    comportamiento del prototipo original, una sola llave compartida por
+    todos los locales. La public_key no hace falta aquí: culqi.js la usó en el
+    navegador para tokenizar; el cargo solo exige la secret."""
     if c.order_id not in store.ORDERS:
         raise HTTPException(404, "pedido?")
     o = store.ORDERS[c.order_id]
     modules.gates(o["tenant"], "pagos")  # gating real del módulo
-    sk = os.environ.get("CULQI_SECRET_KEY", "")
+    cuenta = payments.get_account(o["tenant"])
+    sk = ((cuenta.secret_key if cuenta else "")
+          or os.environ.get("CULQI_SECRET_KEY", ""))
     if not sk:
         raise HTTPException(400, "Sin CULQI_SECRET_KEY: no hay verificación real. "
                                  "Usa el cobro simulado del demo.")
-    body = json.dumps({"amount": int(round(o["total"] * 100)),
-                       "currency_code": "PEN", "email": "cliente@demo.pe",
-                       "source_id": c.token}).encode()
-    req = urllib.request.Request("https://api.culqi.com/v2/charges", data=body,
-                                 method="POST",
-                                 headers={"Authorization": "Bearer " + sk,
-                                          "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            ch = json.loads(r.read().decode())
-    except urllib.error.HTTPError as e:
-        detalle = e.read().decode(errors="replace")[:200]
-        o["timeline"].append("culqi_rechazado")
-        persist.order_write(o)  # write-through: el rechazo también persiste
-        raise HTTPException(502, f"Culqi rechazó el cargo: {detalle}")
-    except Exception as e:
-        raise HTTPException(502, f"No se pudo contactar a Culqi: {e}")
+        ch = payments.crear_cargo_culqi(sk, int(round(o["total"] * 100)), c.token)
+    except payments.CulqiError as e:
+        if e.code is not None:  # Culqi contestó con un error HTTP
+            o["timeline"].append("culqi_rechazado")
+            persist.order_write(o)  # write-through: el rechazo también persiste
+            raise HTTPException(502, "Culqi rechazó el cargo: "
+                                     f"{payments._culqi_error_message(e.body)}")
+        raise HTTPException(502, f"No se pudo contactar a Culqi: {e.body}")
     exito = ch.get("outcome", {}).get("type") in ("venta_exitosa", "venta_exito") \
         or ch.get("status") == "successful"
     if exito:

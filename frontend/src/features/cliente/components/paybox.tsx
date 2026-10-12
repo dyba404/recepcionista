@@ -1,35 +1,30 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { QRCodeSVG } from 'qrcode.react'
 import {
   AlertTriangle,
   CheckCircle2,
+  CreditCard,
   RefreshCw,
 } from 'lucide-react'
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
-import { usePayConfig } from '@/hooks/use-pay-config'
+import { QRCodeSVG } from 'qrcode.react'
 import { api, apiErrorDetail } from '@/lib/api'
 import { penFormatter } from '@/lib/order-utils'
 import type {
+  CulqiChargeResult,
   CulqiLink,
   CulqiWebhookResult,
   Order,
   YapeResult,
 } from '@/lib/types'
+import { usePayConfig } from '@/hooks/use-pay-config'
+import { useTenants } from '@/hooks/use-tenants'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { CHECKOUT_CERRADO, abrirCheckoutCulqi } from '../culqi-checkout'
 
 export interface PayboxProps {
   tenant: string
@@ -47,11 +42,16 @@ export interface PayboxProps {
 
 /**
  * Paybox del simulador (cuando el bot responde next='pago'): crea la orden
- * y el link de Culqi, muestra el QR de Yape con el monto exacto y los tres
- * caminos de pago — Culqi SIMULADO (webhook), Yape exacto ✓ y Yape falso ✗
- * (monto -10, para probar la regla anti-fraude). Copys del legacy
- * static/chat.html. El pago con tarjeta real NO está implementado en esta
- * versión: solo el botón simulado.
+ * y el link de Culqi, muestra el QR de Yape con el monto exacto y los
+ * caminos de pago (contrato pasarela-culqi):
+ * - Con llaves (GET /api/payments/config → culqi_pk NO vacío): botón
+ *   primario "Pagar con tarjeta (Culqi)" que abre el checkout REAL
+ *   (culqi.js v4 por CDN), espera el token y cobra con
+ *   POST /api/payments/culqi/charge.
+ * - Sin llaves: SOLO el botón Culqi SIMULADO (webhook) con la nota
+ *   honesta, más el QR de Yape — Yape exacto ✓ y Yape falso ✗ (monto
+ *   -10, para probar la regla anti-fraude). Copys del legacy
+ *   static/chat.html.
  */
 export function Paybox({
   tenant,
@@ -69,6 +69,60 @@ export function Paybox({
   } | null>(null)
   const configQuery = usePayConfig(tenant)
   const config = configQuery.data
+  const tenantsQuery = useTenants()
+
+  /** Con llaves públicas (culqi_pk no vacío) hay checkout de tarjeta REAL. */
+  const culqiPk = config?.culqi_pk ?? ''
+  const hayCulqiReal = culqiPk.length > 0
+
+  /** Nombre del local para el título del checkout de Culqi. */
+  const nombreLocal =
+    tenantsQuery.data?.find((t) => t.id === tenant)?.nombre ?? tenant
+
+  /** Checkout REAL (culqi.js v4): token del iframe → cargo en el servidor. */
+  async function pagarTarjetaReal() {
+    if (!culqiPk) return
+    onCliente('Pago con tarjeta')
+    setBusy(true)
+    setError(null)
+    onTyping(true)
+    try {
+      const token = await abrirCheckoutCulqi({
+        publicKey: culqiPk,
+        title: nombreLocal,
+        total: order.total,
+      })
+      const res = await api.post<CulqiChargeResult>(
+        '/api/payments/culqi/charge',
+        { order_id: order.id, token: token.id }
+      )
+      onTyping(false)
+      if (res.data.ok) {
+        onBot(
+          `✓ Cargo verificado por Culqi: ${res.data.charge_id} — ${res.data.order.id} a cocina`,
+          res.data.order.id
+        )
+        setPagado(true)
+      } else {
+        onBot(
+          `Culqi no aprobó el cargo: ${res.data.motivo || 'revisa la tarjeta e inténtalo de nuevo, o usa Yape.'}`
+        )
+      }
+    } catch (err) {
+      onTyping(false)
+      const mensaje = err instanceof Error ? err.message : ''
+      if (mensaje === CHECKOUT_CERRADO) {
+        onBot('Checkout cerrado sin completar — usa Yape o el simulado.')
+      } else {
+        const motivo = apiErrorDetail(err) ?? (mensaje || 'inténtalo de nuevo')
+        onBot(
+          `El checkout de Culqi no se pudo completar (${motivo}). Usa Yape o el cobro simulado.`
+        )
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function pagarCulqi() {
     onCliente('Pago con Culqi')
@@ -105,9 +159,7 @@ export function Paybox({
     setError(null)
     onTyping(true)
     // Yape falso: monto -10 para probar la verificación anti-fraude.
-    const monto = exacto
-      ? order.total
-      : Math.max(order.total - 10, 0)
+    const monto = exacto ? order.total : Math.max(order.total - 10, 0)
     try {
       const res = await api.post<YapeResult>('/api/payments/yape', {
         order_id: order.id,
@@ -153,7 +205,7 @@ export function Paybox({
         </span>
         <CardTitle className='font-mono text-xs font-normal tracking-wide text-muted-foreground'>
           cobro {order.id} ·{' '}
-          <span className='font-semibold tabular-nums text-foreground'>
+          <span className='font-semibold text-foreground tabular-nums'>
             {penFormatter.format(order.total)}
           </span>{' '}
           · a {order.direccion || 'sin dirección'}
@@ -166,8 +218,7 @@ export function Paybox({
             ref <b>{link.reference_id}</b>
           </Badge>
           <Badge variant='outline' className='tabular-nums'>
-            comisión{' '}
-            <b>{penFormatter.format(link.comision_est)}</b>
+            comisión <b>{penFormatter.format(link.comision_est)}</b>
           </Badge>
         </div>
 
@@ -198,13 +249,11 @@ export function Paybox({
             <p className='text-sm font-semibold'>Yape QR del local</p>
             <p className='font-mono text-xs text-muted-foreground'>
               código {config?.yape_qr ?? '…'} · monto exacto{' '}
-              <b className='tabular-nums'>
-                {penFormatter.format(order.total)}
-              </b>
+              <b className='tabular-nums'>{penFormatter.format(order.total)}</b>
             </p>
             <p className='mt-1 text-xs text-muted-foreground'>
-              QR demo escaneable: solo pasa a cocina el monto EXACTO
-              verificado por el servidor. La foto del voucher nunca basta.
+              QR demo escaneable: solo pasa a cocina el monto EXACTO verificado
+              por el servidor. La foto del voucher nunca basta.
             </p>
           </div>
         </div>
@@ -212,8 +261,7 @@ export function Paybox({
         {pagado ? (
           <div className='flex items-center justify-between gap-2 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2'>
             <span className='flex items-center gap-1.5 text-sm font-medium text-primary'>
-              <CheckCircle2 className='size-4' /> Pago verificado —{' '}
-              {order.id}
+              <CheckCircle2 className='size-4' /> Pago verificado — {order.id}
             </span>
             <Button asChild size='sm' variant='outline'>
               <Link to='/panel' search={{ tenant }}>
@@ -225,7 +273,25 @@ export function Paybox({
           <>
             <Separator />
             <div className='flex flex-wrap gap-2'>
-              <Button disabled={busy} onClick={() => void pagarCulqi()}>
+              {/* Mientras carga la config no sabemos si hay checkout real:
+                  el slot del botón primario queda en skeleton. */}
+              {configQuery.isPending ? (
+                <Skeleton className='h-9 w-48' />
+              ) : hayCulqiReal ? (
+                <Button
+                  disabled={busy}
+                  onClick={() => void pagarTarjetaReal()}
+                  className='gap-1.5'
+                >
+                  <CreditCard className='size-4' />
+                  Pagar con tarjeta (Culqi)
+                </Button>
+              ) : null}
+              <Button
+                variant={hayCulqiReal ? 'outline' : 'default'}
+                disabled={busy}
+                onClick={() => void pagarCulqi()}
+              >
                 Culqi (SIMULADO)
               </Button>
               <Button
@@ -244,7 +310,9 @@ export function Paybox({
               </Button>
             </div>
             <p className='text-xs text-muted-foreground'>
-              (el pago con tarjeta real requiere llaves; usa el simulado)
+              {hayCulqiReal
+                ? 'El pago con tarjeta abre el checkout de Culqi y crea un cargo real que el servidor verifica contra la API de Culqi.'
+                : '(el pago con tarjeta real requiere llaves; usa el simulado)'}
               {link.nota ? ` — ${link.nota}` : ''}
             </p>
           </>

@@ -84,6 +84,22 @@ class WhatsAppChannel(SQLModel, table=True):
     webhook_verified_at: datetime | None = None
 
 
+# ── pagos (change pasarela-culqi): cuenta Culqi POR LOCAL ──
+
+# PaymentAccount.estado: "desconectada" | "conectada". Un local = una cuenta
+# por proveedor (upsert por tenant+provider en payments.py). La secret_key
+# vive SOLO aquí: jamás viaja en una respuesta HTTP.
+class PaymentAccount(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    provider: str = Field(default="culqi")
+    public_key: str
+    secret_key: str
+    estado: str = Field(default="desconectada")
+    verified_at: datetime | None = None
+    created_at: datetime = Field(default_factory=_now)
+
+
 # ── pedidos + carta (change saas-cola-1: persistencia con espejo write-through) ──
 
 # Order espeja cada dict de store.ORDERS (keyed "#101"). items/timeline van

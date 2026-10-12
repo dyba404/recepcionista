@@ -102,9 +102,16 @@ export interface ChatResponse {
   foto?: string
 }
 
-/** GET /api/payments/config?tenant= (culqi_pk vacío = simulado). */
+/**
+ * GET /api/payments/config?tenant= (culqi_pk vacío = simulado).
+ * Contrato pasarela-culqi: culqi_estado dice si el chat cobra con tarjeta
+ * real ("conectada" por cuenta del local o "simulada" por .env) y
+ * culqi_pk_enmascarada enseña la llave pública con la que se cobra.
+ */
 export interface PayConfig {
   culqi_pk: string
+  culqi_pk_enmascarada?: string | null
+  culqi_estado?: 'conectada' | 'simulada' | (string & {})
   yape_qr: string
   tenant: string
 }
@@ -133,6 +140,37 @@ export interface YapeResult {
 }
 
 /* ============================================================
+ * Contrato "pasarela-culqi": cuenta de Culqi del local + cargo real
+ * ============================================================ */
+
+/** Estado de la cuenta de la pasarela (femenino: la cuenta/conexión). */
+export type PaymentsEstado = 'desconectada' | 'conectada' | (string & {})
+
+/** GET /api/payments/cuenta?tenant= (Bearer) — cuenta del local. */
+export interface PaymentsAccount {
+  estado: PaymentsEstado
+  /** Llave pública ENMASCARADA ("pk_test_…1234") — nunca la completa. */
+  public_key: string | null
+  /** Cuándo validó Culqi las llaves por última vez (ISO). */
+  verified_at: string | null
+  /** Proveedor de la pasarela ("culqi"). */
+  provider: string
+}
+
+/**
+ * POST /api/payments/culqi/charge {order_id, token} → cargo REAL con
+ * tarjeta, verificado por el servidor contra la API de Culqi.
+ */
+export interface CulqiChargeResult {
+  ok: boolean
+  /** Id del cargo en Culqi ("chr_…") — presente en la rama ok. */
+  charge_id: string
+  /** Motivo del rechazo tal como lo devuelve Culqi (cuando !ok). */
+  motivo: string
+  order: Order
+}
+
+/* ============================================================
  * Contrato "modulos-mvp": módulos, WhatsApp, inbox, canned
  * (openspec/changes/modulos-mvp/proposal.md)
  * ============================================================ */
@@ -149,10 +187,7 @@ export interface ModuleConfig {
 
 /** GET /api/whatsapp/status?tenant= → estado del canal WhatsApp */
 export type WhatsAppEstado =
-  | 'desconectado'
-  | 'conectado'
-  | 'pausado'
-  | (string & {})
+  'desconectado' | 'conectado' | 'pausado' | (string & {})
 
 export interface WhatsAppStatus {
   estado: WhatsAppEstado

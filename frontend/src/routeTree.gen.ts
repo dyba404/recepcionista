@@ -28,6 +28,7 @@ import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings/profile'
 import { Route as AuthenticatedConfiguracionModulosIndexRouteImport } from './routes/_authenticated/configuracion/modulos/index'
+import { Route as AuthenticatedConfiguracionPagosIndexRouteImport } from './routes/_authenticated/configuracion/pagos/index'
 import { Route as AuthenticatedConfiguracionWhatsappIndexRouteImport } from './routes/_authenticated/configuracion/whatsapp/index'
 import { Route as AuthenticatedMensajeriaConectarIndexRouteImport } from './routes/_authenticated/mensajeria/conectar/index'
 import { Route as AuthenticatedMensajeriaInboxIndexRouteImport } from './routes/_authenticated/mensajeria/inbox/index'
@@ -135,6 +136,12 @@ const AuthenticatedConfiguracionModulosIndexRoute =
     path: '/configuracion/modulos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracionPagosIndexRoute =
+  AuthenticatedConfiguracionPagosIndexRouteImport.update({
+    id: '/configuracion/pagos/',
+    path: '/configuracion/pagos/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracionWhatsappIndexRoute =
   AuthenticatedConfiguracionWhatsappIndexRouteImport.update({
     id: '/configuracion/whatsapp/',
@@ -173,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/panel/': typeof AuthenticatedPanelIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
+  '/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
   '/mensajeria/conectar/': typeof AuthenticatedMensajeriaConectarIndexRoute
   '/mensajeria/inbox/': typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -195,6 +203,7 @@ export interface FileRoutesByTo {
   '/panel': typeof AuthenticatedPanelIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/configuracion/modulos': typeof AuthenticatedConfiguracionModulosIndexRoute
+  '/configuracion/pagos': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/configuracion/whatsapp': typeof AuthenticatedConfiguracionWhatsappIndexRoute
   '/mensajeria/conectar': typeof AuthenticatedMensajeriaConectarIndexRoute
   '/mensajeria/inbox': typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -220,6 +229,7 @@ export interface FileRoutesById {
   '/_authenticated/panel/': typeof AuthenticatedPanelIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
+  '/_authenticated/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/_authenticated/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
   '/_authenticated/mensajeria/conectar/': typeof AuthenticatedMensajeriaConectarIndexRoute
   '/_authenticated/mensajeria/inbox/': typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/panel/'
     | '/settings/'
     | '/configuracion/modulos/'
+    | '/configuracion/pagos/'
     | '/configuracion/whatsapp/'
     | '/mensajeria/conectar/'
     | '/mensajeria/inbox/'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/panel'
     | '/settings'
     | '/configuracion/modulos'
+    | '/configuracion/pagos'
     | '/configuracion/whatsapp'
     | '/mensajeria/conectar'
     | '/mensajeria/inbox'
@@ -291,6 +303,7 @@ export interface FileRouteTypes {
     | '/_authenticated/panel/'
     | '/_authenticated/settings/'
     | '/_authenticated/configuracion/modulos/'
+    | '/_authenticated/configuracion/pagos/'
     | '/_authenticated/configuracion/whatsapp/'
     | '/_authenticated/mensajeria/conectar/'
     | '/_authenticated/mensajeria/inbox/'
@@ -441,6 +454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracionModulosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracion/pagos/': {
+      id: '/_authenticated/configuracion/pagos/'
+      path: '/configuracion/pagos'
+      fullPath: '/configuracion/pagos/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionPagosIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracion/whatsapp/': {
       id: '/_authenticated/configuracion/whatsapp/'
       path: '/configuracion/whatsapp'
@@ -493,6 +513,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLocalesIndexRoute: typeof AuthenticatedLocalesIndexRoute
   AuthenticatedPanelIndexRoute: typeof AuthenticatedPanelIndexRoute
   AuthenticatedConfiguracionModulosIndexRoute: typeof AuthenticatedConfiguracionModulosIndexRoute
+  AuthenticatedConfiguracionPagosIndexRoute: typeof AuthenticatedConfiguracionPagosIndexRoute
   AuthenticatedConfiguracionWhatsappIndexRoute: typeof AuthenticatedConfiguracionWhatsappIndexRoute
   AuthenticatedMensajeriaConectarIndexRoute: typeof AuthenticatedMensajeriaConectarIndexRoute
   AuthenticatedMensajeriaInboxIndexRoute: typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -509,6 +530,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPanelIndexRoute: AuthenticatedPanelIndexRoute,
   AuthenticatedConfiguracionModulosIndexRoute:
     AuthenticatedConfiguracionModulosIndexRoute,
+  AuthenticatedConfiguracionPagosIndexRoute:
+    AuthenticatedConfiguracionPagosIndexRoute,
   AuthenticatedConfiguracionWhatsappIndexRoute:
     AuthenticatedConfiguracionWhatsappIndexRoute,
   AuthenticatedMensajeriaConectarIndexRoute:

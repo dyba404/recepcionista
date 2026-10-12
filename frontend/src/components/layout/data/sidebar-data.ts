@@ -1,6 +1,8 @@
 import {
   Blocks,
   BookOpen,
+  Bot,
+  BrainCircuit,
   ChefHat,
   ClipboardList,
   Code,
@@ -25,8 +27,10 @@ import { type SidebarData } from '../types'
  *   con badge de no leídos — inyectado en vivo desde AppSidebar).
  * - Gestión: Panel kanban de pedidos, Cocina (KDS) y Carta.
  * - Configuración: Ajustes (perfil/apariencia), Canal de WhatsApp,
- *   Pasarela de pagos (Culqi), Equipo (staff del local, saas-cola-2) y
- *   Módulos (toggles owner).
+ *   Base de conocimiento y Asistente (carta-inventario-bot: el bot
+ *   responde horarios/ubicación/promos desde la KB y habla con el tono
+ *   elegido), Pasarela de pagos (Culqi), Equipo (staff del local,
+ *   saas-cola-2) y Módulos (toggles owner).
  * - Ayuda: enlaces reales del template (repo e issues de shadcn-admin).
  *
  * El gating por módulos (ocultar Mensajería/Cocina/Carta) lo aplica
@@ -116,6 +120,20 @@ export const sidebarData: SidebarData = {
           title: 'Canal de WhatsApp',
           url: '/configuracion/whatsapp',
           icon: PlugZap,
+        },
+        {
+          // Base de conocimiento (carta-inventario-bot): horarios, ubicación
+          // y promos que el bot responde desde aquí.
+          title: 'Base de conocimiento',
+          url: '/configuracion/conocimiento',
+          icon: BrainCircuit,
+        },
+        {
+          // Asistente (carta-inventario-bot): nombre, saludo, tono e
+          // instrucciones extra del bot.
+          title: 'Asistente',
+          url: '/configuracion/asistente',
+          icon: Bot,
         },
         {
           title: 'Pasarela de pagos',

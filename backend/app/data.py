@@ -24,12 +24,14 @@ TENANTS = {
 
 MENUS = {
     "faro": [
-        {"id": "f1", "nombre": "Ceviche clásico", "precio": 32.0, "cat": "Criollos", "desc": "Pesca del día, limón, choclo, camote", "disponible": True, "tags": "pescado limon ceviche"},
+        {"id": "f1", "nombre": "Ceviche clásico", "precio": 32.0, "cat": "Criollos", "desc": "Pesca del día, limón, choclo, camote", "disponible": True, "stock": 8, "tags": "pescado limon ceviche"},
         {"id": "f2", "nombre": "Lomo saltado", "precio": 34.0, "cat": "Criollos", "desc": "Lomo, cebolla, tomate, papas", "disponible": True, "tags": "carne lomo"},
         {"id": "f3", "nombre": "Arroz con mariscos", "precio": 36.0, "cat": "Marinos", "desc": "Arroz, mixtura, parmesano", "disponible": True, "tags": "arroz mariscos"},
         {"id": "f4", "nombre": "Chicha morada 1L", "precio": 10.0, "cat": "Bebidas", "desc": "Natural", "disponible": True, "tags": "bebida chicha"},
         {"id": "f5", "nombre": "Inca Kola 500ml", "precio": 6.0, "cat": "Bebidas", "desc": "Personal", "disponible": True, "tags": "gaseosa inca"},
-        {"id": "f6", "nombre": "Tiradito nikkei", "precio": 30.0, "cat": "Marinos", "desc": "Láminas pesca, salsa nikkei", "disponible": False, "tags": "tiradito pescado"},
+        # stock 0 (carta-inventario-bot): se ve el estado "AGOTADO" en el demo.
+        # Sin la clave = ilimitado (default de todos los demás).
+        {"id": "f6", "nombre": "Tiradito nikkei", "precio": 30.0, "cat": "Marinos", "desc": "Láminas pesca, salsa nikkei", "disponible": False, "stock": 0, "tags": "tiradito pescado"},
     ],
     "brasa": [
         {"id": "b1", "nombre": "Pollo entero + papas + ensalada", "precio": 72.0, "cat": "Pollos", "desc": "Para 4, incluye salsas", "disponible": True, "tags": "pollo entero brasa"},

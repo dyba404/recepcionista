@@ -1,15 +1,28 @@
 """Lógica bot + pagos sandbox (sin dinero real).
 
 Patrón intents + entities (cf. Kulkarni 2025 Dialogflow food-ordering):
-cada mensaje se normaliza (minúsculas, sin tildes) y se clasifica en un intent
-con entidades (plato, cantidad). Nada de match exacto: el usuario escribe
+cada mensaje se normaliza (minúsculas, sin tildes) y se clasifica en un
+intent con entidades (plato, cantidad). Nada de match exacto: el usuario escribe
 "que hay de menu", "quiero 2 ceviche + 1 inca", "cuanto esta el lomo".
+
+carta-inventario-bot añade dos cosas deterministas:
+- STOCK: disponible=False O stock==0 es EL MISMO camino de agotado
+  (agotado()): respuesta de agotado + alternativa, fuera de la numeración
+  de la carta y del pool de sugerencias. find_item SIGUE devolviendo los
+  stock==0 (igual que hace con los disponible=False: sin eso no habría
+  respuesta de agotado); quien los filtra es el que ELIGE alternativas.
+- KB: intents HORARIO_W/UBICACION_W responden SOLO el contenido de la
+  entrada activa cuyo tema matchee (case/acentos flat); sin entrada,
+  respuesta honesta y NUNCA al LLM (que inventaría el dato). Se evalúan
+  solo si el mensaje no es parte de un flujo de pedido (el mismo trato
+  que se dan TRACK_W y ORDER_V entre sí) — "donde estas ubicado" responde
+  la KB, jamás dispara el flujo de dirección.
 """
 import re
 import unicodedata
 import uuid
 
-from . import data
+from . import bot, data, kb
 
 ESTADOS = ["nuevo", "confirmado", "cocina", "delivery", "entregado"]
 
@@ -56,7 +69,13 @@ OUT_W = ("codigo", "python", "programa", "programar", "tarea", "examen",
 MODEL_Q = ("que modelo", "que eres", "quien eres", "quienes son", "eres robot",
            "eres ia", "eres inteligencia", "que ia eres", "claude", "chatgpt",
            "big-pickle", "opencode", "que version")
-BOTS = {"faro": "FaroBot", "brasa": "BrasaBot", "juana": "JuanaBot"}
+# KB (carta-inventario-bot): intents que responden desde la base de
+# conocimiento. "hora" se matchea por palabra completa aparte ("ahora" NO es
+# una pregunta de horario); el resto por subcadena, como todo el NLU.
+HORARIO_W = ("horario", "hora", "atienden", "abren", "cierran", "abierto")
+UBICACION_W = ("ubicacion", "donde quedan", "direccion del local",
+               "estan ubicados", "donde esta ubicado", "donde estas ubicado",
+               "donde estan ubicados", "donde esta su local", "como llegar")
 QTY_RE = re.compile(r"(\d+)\s*[x×]?\s*")
 SPLIT_RE = re.compile(r"\s*(?:\+|&|,|;|\by\b)\s*")
 NUMWORDS = {"un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4,
@@ -90,13 +109,58 @@ def strip_lead(chunk: str) -> str:
     return chunk
 
 
+def agotado(i: dict) -> bool:
+    """disponible=False O stock==0 → el MISMO camino de agotado (contrato):
+    fuera de la numeración, respuesta "agotado hoy" y sin ofrecerlo como
+    alternativa. stock null (sin la clave) = ilimitado."""
+    return (not i["disponible"]) or (i.get("stock") == 0)
+
+
+def disponibles(tenant: str) -> list:
+    """La carta viva: la numeración del bot ("el 3") y menu_text SIEMPRE
+    usan esta lista, para que el número apunte al mismo plato en ambos."""
+    return [i for i in data.get_menu(tenant) if not agotado(i)]
+
+
+def kb_intent(msg: str) -> str | None:
+    """"horario" | "ubicacion" | None. "hora" va por palabra completa
+    (has_word) para que "ahora" no dispare la KB; el resto subcadena."""
+    if has_word(msg, ("hora",)) or has_any(
+            msg, tuple(w for w in HORARIO_W if w != "hora")):
+        return "horario"
+    if has_any(msg, UBICACION_W):
+        return "ubicacion"
+    return None
+
+
+def _kb_reply(tenant: str, intent: str) -> str:
+    """Contenido de la entrada activa cuyo tema contenga el intent
+    (case/acentos flat), SOLO el contenido. Sin entrada: honesta (verbatim
+    del contrato), y quien llama ya evitó el LLM — no se inventa el dato."""
+    clave = intent  # "horario" | "ubicacion" — igual que como matchea el tema
+    for e in kb.kb_entries(tenant):
+        if clave in norm(e.tema):
+            return e.contenido
+    return "No tengo ese dato cargado, escríbele al local"
+
+
 def menu_text(tenant: str, greet: bool = True) -> str:
     t = data.TENANTS[tenant]
-    items = [i for i in data.get_menu(tenant) if i["disponible"]]
+    # saludo del Asistente (BotConfig) si viene; si no, el del tenant
+    saludo = bot.bot_config(tenant)["saludo"] or t["saludo"]
+    menu = data.get_menu(tenant)
+    items = [i for i in menu if not agotado(i)]
+    agotados = [i for i in menu if agotado(i)]
     lines = "\n".join(f"{n}. *{i['nombre']}* — S/{i['precio']:.0f}\n   {i['desc']}"
                       for n, i in enumerate(items, 1))
-    head = f"{t['saludo']}\n\n" if greet else ""
-    return (f"{head}Carta hoy:\n\n{lines}\n\n"
+    # stock==0 sale como el disponible=False de siempre: fuera de la
+    # numeración y listado al final con la presentación de agotado.
+    cola = ""
+    if agotados:
+        cola = ("\n\nAgotado hoy: "
+                + ", ".join(f"*{i['nombre']}*" for i in agotados))
+    head = f"{saludo}\n\n" if greet else ""
+    return (f"{head}Carta hoy:\n\n{lines}{cola}\n\n"
             f"Respóndeme con el número o dime ej: `quiero 2 ceviche + 1 inca`.\n"
             f"También puedes pedir `foto del ceviche` y te la mando.")
 
@@ -198,13 +262,22 @@ def bot_reply(tenant: str, message: str, cart: list) -> dict:
     # 0) número de carta ("2", "el 3"): ficha del plato n
     mn = re.fullmatch(r"(el|la|él |lo |l |n(?:umero|ro)?\.?)?\s*(\d)\b.*", msg)
     if mn:
-        items = [i for i in data.get_menu(tenant) if i["disponible"]]
+        items = disponibles(tenant)  # misma lista que numeró menu_text
         n = int(mn.group(2))
         if 1 <= n <= len(items):
             it = items[n - 1]
             return {"reply": (f"*{it['nombre']}* — S/{it['precio']:.0f}\n{it['desc']}.\n"
                               f"¿Lo agrego? Dime ej: `2 {it['nombre'].split()[0].lower()}`"),
                     "cart": cart}
+
+    # 0a) KB determinista (horario/ubicación). SOLO si el mensaje no es parte
+    # de un flujo de pedido (mismo trato que se dan TRACK_W y ORDER_V): con
+    # entrada activa responde SOLO su contenido; sin entrada es honesta —
+    # y jamás cae al LLM con una pregunta de horario (inventaría el dato).
+    if not has_any(msg, ORDER_V):
+        ki = kb_intent(msg)
+        if ki:
+            return {"reply": _kb_reply(tenant, ki), "cart": cart}
 
     # 0b) cobertura de delivery ("llevan a miraflores?"). Si habla de SU pedido,
     # cae al tracking de abajo.
@@ -214,9 +287,10 @@ def bot_reply(tenant: str, message: str, cart: list) -> dict:
                           f"Pásame tu dirección y cerramos."),
                 "cart": cart}
 
-    # 0c) identidad: siempre el personaje, jamás el modelo interno
+    # 0c) identidad: siempre el personaje, jamás el modelo interno. El nombre
+    # viene del Asistente (BotConfig) con fallback al default del tenant.
     if has_any(msg, MODEL_Q):
-        return {"reply": (f"Soy *{BOTS.get(tenant, 'FaroBot')}*, recepcionista de "
+        return {"reply": (f"Soy *{bot.nombre_bot(tenant)}*, recepcionista de "
                           f"{t['nombre']}. Te ayudo con la *carta*, tu *pedido* "
                           f"y el *pago*. ¿Qué se te antoja?"),
                 "cart": cart}
@@ -274,9 +348,12 @@ def bot_reply(tenant: str, message: str, cart: list) -> dict:
     if order_hits:
         replies = []
         for item, cant in order_hits:
-            if not item["disponible"]:
+            if agotado(item):  # disponible=False O stock==0: mismo camino
                 alts = data.find_item(tenant, item["cat"])
-                alt = next((a for a in alts if a["disponible"] and a["id"] != item["id"]), None)
+                # alternativa viva: find_item devuelve los stock==0 (para que
+                # este reply exista), pero nunca los sugiere como reemplazo
+                alt = next((a for a in alts
+                            if not agotado(a) and a["id"] != item["id"]), None)
                 replies.append(f"{item['nombre']} está agotado hoy." +
                                (f" ¿Te ofrezco {alt['nombre']} S/{alt['precio']:.0f}?" if alt else ""))
                 continue
@@ -294,7 +371,7 @@ def bot_reply(tenant: str, message: str, cart: list) -> dict:
         if hits:
             it = hits[0]
             return {"reply": (f"*{it['nombre']}* — S/{it['precio']:.0f}\n{it['desc']}. "
-                              f"{'Disponible ahora.' if it['disponible'] else 'Agotado hoy.'}\n"
+                              f"{'Disponible ahora.' if not agotado(it) else 'Agotado hoy.'}\n"
                               f"¿Lo agrego? Dime ej: `2 {it['nombre'].split()[0].lower()}`"),
                     "cart": cart}
 
@@ -306,7 +383,7 @@ def bot_reply(tenant: str, message: str, cart: list) -> dict:
             return {"reply": (f"*{it['nombre']}* — S/{it['precio']:.0f}\n{it['desc']}. "
                               f"¿Te anoto uno? Dime ej: `1 {it['nombre'].split()[0].lower()}`"),
                     "cart": cart, "foto": it["foto"]}
-        items = [i for i in data.get_menu(tenant) if i["disponible"]][:3]
+        items = disponibles(tenant)[:3]
         sug = ", ".join(f"{n}. {i['nombre']}" for n, i in enumerate(items, 1))
         return {"reply": ("Dime qué plato y te mando su foto con precio. "
                           f"Para empezar: {sug}."),
@@ -321,7 +398,7 @@ def bot_reply(tenant: str, message: str, cart: list) -> dict:
     if hits:
         it = hits[0]
         return {"reply": (f"{it['nombre']} S/{it['precio']:.0f} — {it['desc']} ({it['cat']}). "
-                          f"{'Disponible.' if it['disponible'] else 'Agotado hoy.'}\n"
+                          f"{'Disponible.' if not agotado(it) else 'Agotado hoy.'}\n"
                           f"¿Lo agrego? Ej: `2 {it['nombre'].split()[0].lower()}`"),
                 "cart": cart}
 

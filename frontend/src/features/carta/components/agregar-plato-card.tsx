@@ -17,16 +17,18 @@ import { Label } from '@/components/ui/label'
 
 /**
  * "Agregar plato" de la carta admin (contrato saas-cola-2): POST
- * /api/menu/items {tenant, nombre, desc, precio, cat, disponible}. Solo
- * owner; el error del backend (validaciones, 403) se muestra inline tal
- * cual. La invalidación de ['menu', tenant] refresca tabla y chat.
+ * /api/menu/items {tenant, nombre, desc, precio, cat, disponible}. Requiere
+ * manage_menu (owner+admin, matriz roles-equipo); el error del backend
+ * (validaciones, 403) se muestra inline tal cual. La invalidación de
+ * ['menu', tenant] refresca tabla y chat.
  */
 export function AgregarPlatoCard({
   tenant,
-  isOwner,
+  puedeGestionar,
 }: {
   tenant: string
-  isOwner: boolean
+  /** manage_menu: owner+admin; el staff ve el candado (patrón pagos/equipo). */
+  puedeGestionar: boolean
 }) {
   const queryClient = useQueryClient()
 
@@ -100,18 +102,20 @@ export function AgregarPlatoCard({
           Agregar plato
         </CardTitle>
         <CardDescription>
-          El plato entra disponible desde ya: el chat de cliente puede
-          venderlo al instante.
+          El plato entra disponible desde ya: el chat de cliente puede venderlo
+          al instante.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!isOwner && (
+        {!puedeGestionar && (
           <Alert className='mb-4'>
             <Lock className='size-4' />
-            <AlertTitle>Solo el dueño puede hacer esto</AlertTitle>
+            <AlertTitle>
+              Solo el dueño o un administrador pueden hacer esto
+            </AlertTitle>
             <AlertDescription>
-              Agregar platos requiere rol owner. Pídele al dueño del local
-              que actualice la carta.
+              Agregar platos requiere rol de dueño o administrador. Pídele al
+              dueño del local que actualice la carta.
             </AlertDescription>
           </Alert>
         )}
@@ -133,7 +137,7 @@ export function AgregarPlatoCard({
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder='Ej. Pollo a la brasa'
-                disabled={!isOwner || addItem.isPending}
+                disabled={!puedeGestionar || addItem.isPending}
               />
             </div>
             <div className='space-y-2'>
@@ -147,7 +151,7 @@ export function AgregarPlatoCard({
                 onChange={(e) => setPrecio(e.target.value)}
                 placeholder='Ej. 38.9'
                 aria-invalid={Boolean(formError)}
-                disabled={!isOwner || addItem.isPending}
+                disabled={!puedeGestionar || addItem.isPending}
               />
             </div>
           </div>
@@ -159,7 +163,7 @@ export function AgregarPlatoCard({
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
                 placeholder='Ej. Con papas doradas y ensalada'
-                disabled={!isOwner || addItem.isPending}
+                disabled={!puedeGestionar || addItem.isPending}
               />
             </div>
             <div className='space-y-2'>
@@ -169,7 +173,7 @@ export function AgregarPlatoCard({
                 value={cat}
                 onChange={(e) => setCat(e.target.value)}
                 placeholder='Otros'
-                disabled={!isOwner || addItem.isPending}
+                disabled={!puedeGestionar || addItem.isPending}
               />
             </div>
           </div>
@@ -177,7 +181,7 @@ export function AgregarPlatoCard({
           <Button
             type='submit'
             className='gap-1.5'
-            disabled={!isOwner || addItem.isPending}
+            disabled={!puedeGestionar || addItem.isPending}
           >
             {addItem.isPending ? (
               <RefreshCw className='size-4 animate-spin' />

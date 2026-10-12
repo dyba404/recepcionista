@@ -44,6 +44,12 @@ export interface MenuItem {
   precio: number
   disponible: boolean
   foto?: string
+  /**
+   * Contrato carta-inventario-bot: unidades disponibles del plato.
+   * null (o ausente, backends viejos) = ilimitado; NUNCA negativo.
+   * stock==0 se muestra como "AGOTADO" aunque disponible siga en true.
+   */
+  stock?: number | null
 }
 
 export interface MenuResponse {
@@ -298,4 +304,40 @@ export interface WsMessage {
   order?: Order
   conversation?: Conversation
   message?: Message
+}
+
+/* ============================================================
+ * Contrato "carta-inventario-bot": base de conocimiento y bot
+ * configurable (openspec/changes/carta-inventario-bot/proposal.md)
+ * ============================================================ */
+
+/**
+ * GET /api/kb?tenant= — entrada de la base de conocimiento del local
+ * (horarios, ubicación, promos). El bot inyecta las activas al prompt;
+ * el intent de horario/ubicación responde su contenido.
+ */
+export interface KnowledgeEntry {
+  id: string | number
+  tenant_id?: string
+  tema: string
+  contenido: string
+  /** false = el bot la ignora (no entra al prompt ni a los intents). */
+  activo: boolean
+  created_at?: string
+}
+
+/** Tono del bot (Literal del backend; `(string & {})` tolera backends viejos). */
+export type BotTono = 'cercano' | 'formal' | 'divertido' | (string & {})
+
+/**
+ * GET /api/botconfig?tenant= / PUT /api/botconfig {tenant, …}
+ * (manage_settings). instrucciones_extra máx 800 chars (422 si excede);
+ * las reglas de seguridad del bot NO viven aquí — son fijas.
+ */
+export interface BotConfig {
+  nombre_bot: string
+  saludo: string
+  tono: BotTono
+  instrucciones_extra: string
+  updated_at?: string
 }

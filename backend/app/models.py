@@ -1,9 +1,10 @@
-"""Modelos SQLModel persistentes (ADR 0002 + changes modulos-mvp, saas-cola-1
-y saas-cola-2).
+"""Modelos SQLModel persistentes (ADR 0002 + changes modulos-mvp, saas-cola-1,
+saas-cola-2 y carta-inventario-bot).
 
 user (sesión), mensajería: conversation, message, canned_response,
 module_config, whatsapp_channel; pedidos/carta: order, menu_item
-(saas-cola-1); y locales/pagos: tenant, payment (saas-cola-2).
+(saas-cola-1); locales/pagos: tenant, payment (saas-cola-2); y
+carta-inventario-bot: knowledge_entry (KB temática) y bot_config.
 store.ORDERS, data.MENUS y data.TENANTS siguen siendo el espejo en memoria
 que lee todo el código — persist.py los hidrata de estas tablas y les hace
 write-through en cada mutación.
@@ -125,6 +126,8 @@ class Order(SQLModel, table=True):
 
 # MenuItem espeja cada dict de data.MENUS (keyed "f1"). La columna se llama
 # desc_ ("desc" es palabra reservada de SQL); el dict en memoria usa "desc".
+# stock (carta-inventario-bot): null = ilimitado (default de todos los seed
+# salvo f1=8 y f6=0), NUNCA negativo (los decrementos van con max(0, …)).
 class MenuItem(SQLModel, table=True):
     id: str = Field(primary_key=True)  # "f1" seed | "m1, m2…" agregados
     tenant_id: str = Field(index=True)
@@ -133,8 +136,36 @@ class MenuItem(SQLModel, table=True):
     precio: float
     cat: str
     disponible: bool = True
+    stock: int | None = None  # null = sin límite (POS ligero por plato)
     tags: str
     foto: str
+
+
+# ── base de conocimiento + bot configurable (change carta-inventario-bot) ──
+
+# KnowledgeEntry = el "RAG" del local (patrón Chatwoot): entradas temáticas
+# (horarios, ubicación, promos) que el NLU responde determinista y el prompt
+# del LLM lleva como contexto. Sin secretos: es contenido público del local.
+class KnowledgeEntry(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    tema: str
+    contenido: str
+    activo: bool = True
+    created_at: datetime = Field(default_factory=_now)
+
+
+# BotConfig = el "Asistente" configurable por dueño (patrón asistente): campos
+# seguros (persona/tono/instrucciones) que SE AÑADEN a las REGLAS del sistema,
+# jamás las reemplazan. tono se valida Literal en el schema del PUT (la tabla
+# guarda str para no amarrar la migración a un enum de SQL).
+class BotConfig(SQLModel, table=True):
+    tenant_id: str = Field(primary_key=True)
+    nombre_bot: str
+    saludo: str = Field(default="")
+    tono: str = Field(default="cercano")  # cercano | formal | divertido
+    instrucciones_extra: str = Field(default="")  # máx 800 (422 en el PUT)
+    updated_at: datetime = Field(default_factory=_now)
 
 
 # ── locales + ledger (change saas-cola-2: SaaS de verdad) ──

@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import unicodedata
 
-from . import data, logic, store
+from . import bot, data, kb, logic, store
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SANDBOX = os.path.join(BASE, "sandbox")
@@ -40,36 +40,60 @@ def _find_opencode() -> str:
     return "opencode"  # fallback PATH (shim: prompts multilinea se cortan)
 
 
+# tono del Asistente (BotConfig) → la línea que lo describe en el prompt.
+# Las REGLAS de abajo NO son configurables a propósito: si el dueño pudiera
+# reescribirlas, una instrucción descuidada desarmaría la verificación de
+# pagos o el "sin cocina". Las instrucciones_extra SE AÑADEN después de ellas,
+# marcadas "sin contradecir las REGLAS" (patrón asistente: campos seguros).
+TONOS = {"cercano": "cercano, como caserito peruano",
+         "formal": "formal pero cálido, sin jerga",
+         "divertido": "con humor ligero, sin payasadas"}
+
+
 def context_block(tenant: str) -> str:
     t = data.TENANTS[tenant]
+    cfg = bot.bot_config(tenant)
+    nombre = cfg["nombre_bot"] or bot.DEFAULT_NOMBRES.get(tenant, "FaroBot")
+    tono = TONOS.get(cfg["tono"], TONOS["cercano"])
     lines = []
     for i in data.MENUS.get(tenant, []):
-        disp = "disponible" if i["disponible"] else "AGOTADO"
+        disp = "AGOTADO" if logic.agotado(i) else "disponible"
         lines.append(f"- [{i['id']}] {i['nombre']} S/{i['precio']:.0f} ({disp}). {i['desc']}")
     menu = "\n".join(lines)
-    return f"""Eres FaroBot, el recepcionista WhatsApp de "{t['nombre']}" ({t['distrito']}, Peru).
-Te sabes tu carta DE MEMORIA (esta abajo). No busques archivos, no uses herramientas,
-no narres lo que haces: tu unica salida es el mensaje al cliente, 1 a 4 lineas,
-espanol peruano calido, con tildes correctas. Solo atiendes carta, pedido, pago y
-estado del pedido.
+    # KB activa del local (carta-inventario-bot): horarios, ubicación, promos.
+    # Solo activas, sin tope extra — el local es chico y el prompt aguanta.
+    kbl = [f"- {e.tema}: {e.contenido}" for e in kb.kb_entries(tenant)]
+    kb_block = ("\n- INFORMACION DEL LOCAL:\n" + "\n".join(kbl)) if kbl else ""
+    extras = cfg["instrucciones_extra"].strip()
+    extra_block = (f"""
+
+INSTRUCCIONES DEL DUEÑO (extras, sin contradecir las REGLAS):
+{extras}""" if extras else "")
+    return f"""Eres {nombre}, el recepcionista WhatsApp de "{t['nombre']}" ({t['distrito']}, Peru).
+Tu trato es {tono}. Te sabes tu carta DE MEMORIA (esta abajo). No busques
+archivos, no uses herramientas, no narres lo que haces: tu unica salida es el
+mensaje al cliente, 1 a 4 lineas, espanol peruano calido, con tildes
+correctas. Solo atiendes carta, pedido, pago y estado del pedido.
 
 DATOS REALES (unica fuente de verdad, no inventes nada fuera de esto):
 - Delivery S/{t['delivery']:.0f}. Tiempo estimado: {t['tiempo']}.
 - Cobro: link Culqi (sandbox) o Yape QR del local. La app genera los botones;
   tu solo anuncia la eleccion cuando el pedido este confirmado.
 - CARTA:
-{menu}
+{menu}{kb_block}
 
 REGLAS (cortas, todas obligatorias):
-1. Precios y platos SOLO de la lista de arriba. Nunca reservas ni horarios.
+1. Precios y platos SOLO de la carta de arriba; horarios, ubicacion y promos
+   SOLO de INFORMACION DEL LOCAL (si no aparece ahi, no lo sabes: no lo
+   inventes). Nunca reservas.
 2. Ante saludo o "que hay / menu / carta": saluda en 1 linea Y muestra la lista
    numerada completa en el mismo mensaje. Nunca preguntes a que se refieren.
 3. Si CONFIRMA (confirmar, ok, dale, o da direccion): da el TOTAL y anuncia
    Culqi-link / Yape-QR. JAMAS hables de cocina, preparacion o reparto.
 4. Fuera de rubro (codigo, tareas): 1 linea con humor ("lo mio es la comida")
    + la lista numerada. Nunca hagas ni preguntes por esa tarea.
-5. Nunca menciones tu modelo interno ni que eres IA: siempre eres FaroBot.
-   Nunca crees archivos ni escribas codigo.
+5. Nunca menciones tu modelo interno ni que eres IA: siempre eres {nombre}.
+   Nunca crees archivos ni escribas codigo.{extra_block}
 """
 
 
@@ -267,8 +291,12 @@ def reply(tenant: str, customer: str, message: str, cart: list) -> dict:
 
     # 2) tracking determinista con el nombre de la conversación. Solo si el
     # cliente TIENE pedidos o habla de SU pedido: "cuanto demora?" sin pedidos
-    # es pregunta de tiempos, no tracking (lo atiende el NLU abajo).
-    if logic.has_any(_msg, logic.TRACK_W) and not logic.has_any(_msg, logic.ORDER_V):
+    # es pregunta de tiempos, no tracking (lo atiende el NLU abajo). Las
+    # preguntas de ubicación ("donde estan ubicados") llevan "donde" pero son
+    # de la KB: se excluyen aquí igual que en el NLU (kb_intent).
+    if (logic.has_any(_msg, logic.TRACK_W)
+            and not logic.has_any(_msg, logic.ORDER_V)
+            and logic.kb_intent(_msg) is None):
         if store.track_orders(tenant, customer) or logic.has_any(_msg, logic.TRACK_STRONG):
             return track_reply(tenant, customer, cart)
 
@@ -303,7 +331,8 @@ def _llm_prompt(tenant: str, message: str, cart: list, strict: bool) -> str:
     return (context_block(tenant) + "\n\n" + PRIME + extra
             + "\n\nResponde UNICAMENTE con el mensaje de WhatsApp para el cliente "
               "(1 a 4 lineas, sin narrar nada):\n\n"
-            + f"Cliente por WhatsApp: {message}{_cart_note(cart)}\nMensaje de FaroBot:")
+              + f"Cliente por WhatsApp: {message}{_cart_note(cart)}\n"
+              + f"Mensaje de {bot.nombre_bot(tenant)}:")
 
 
 def _llm_reply(tenant: str, customer: str, message: str, cart: list, state: dict) -> dict:

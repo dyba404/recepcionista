@@ -28,6 +28,8 @@ import { Route as AuthenticatedPanelIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings/profile'
+import { Route as AuthenticatedConfiguracionAsistenteIndexRouteImport } from './routes/_authenticated/configuracion/asistente/index'
+import { Route as AuthenticatedConfiguracionConocimientoIndexRouteImport } from './routes/_authenticated/configuracion/conocimiento/index'
 import { Route as AuthenticatedConfiguracionEquipoIndexRouteImport } from './routes/_authenticated/configuracion/equipo/index'
 import { Route as AuthenticatedConfiguracionModulosIndexRouteImport } from './routes/_authenticated/configuracion/modulos/index'
 import { Route as AuthenticatedConfiguracionPagosIndexRouteImport } from './routes/_authenticated/configuracion/pagos/index'
@@ -137,6 +139,18 @@ const AuthenticatedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedConfiguracionAsistenteIndexRoute =
+  AuthenticatedConfiguracionAsistenteIndexRouteImport.update({
+    id: '/configuracion/asistente/',
+    path: '/configuracion/asistente/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracionConocimientoIndexRoute =
+  AuthenticatedConfiguracionConocimientoIndexRouteImport.update({
+    id: '/configuracion/conocimiento/',
+    path: '/configuracion/conocimiento/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracionEquipoIndexRoute =
   AuthenticatedConfiguracionEquipoIndexRouteImport.update({
     id: '/configuracion/equipo/',
@@ -193,6 +207,8 @@ export interface FileRoutesByFullPath {
   '/locales/': typeof AuthenticatedLocalesIndexRoute
   '/panel/': typeof AuthenticatedPanelIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/configuracion/asistente/': typeof AuthenticatedConfiguracionAsistenteIndexRoute
+  '/configuracion/conocimiento/': typeof AuthenticatedConfiguracionConocimientoIndexRoute
   '/configuracion/equipo/': typeof AuthenticatedConfiguracionEquipoIndexRoute
   '/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
@@ -218,6 +234,8 @@ export interface FileRoutesByTo {
   '/locales': typeof AuthenticatedLocalesIndexRoute
   '/panel': typeof AuthenticatedPanelIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/configuracion/asistente': typeof AuthenticatedConfiguracionAsistenteIndexRoute
+  '/configuracion/conocimiento': typeof AuthenticatedConfiguracionConocimientoIndexRoute
   '/configuracion/equipo': typeof AuthenticatedConfiguracionEquipoIndexRoute
   '/configuracion/modulos': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos': typeof AuthenticatedConfiguracionPagosIndexRoute
@@ -246,6 +264,8 @@ export interface FileRoutesById {
   '/_authenticated/locales/': typeof AuthenticatedLocalesIndexRoute
   '/_authenticated/panel/': typeof AuthenticatedPanelIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/configuracion/asistente/': typeof AuthenticatedConfiguracionAsistenteIndexRoute
+  '/_authenticated/configuracion/conocimiento/': typeof AuthenticatedConfiguracionConocimientoIndexRoute
   '/_authenticated/configuracion/equipo/': typeof AuthenticatedConfiguracionEquipoIndexRoute
   '/_authenticated/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/_authenticated/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
@@ -274,6 +294,8 @@ export interface FileRouteTypes {
     | '/locales/'
     | '/panel/'
     | '/settings/'
+    | '/configuracion/asistente/'
+    | '/configuracion/conocimiento/'
     | '/configuracion/equipo/'
     | '/configuracion/modulos/'
     | '/configuracion/pagos/'
@@ -299,6 +321,8 @@ export interface FileRouteTypes {
     | '/locales'
     | '/panel'
     | '/settings'
+    | '/configuracion/asistente'
+    | '/configuracion/conocimiento'
     | '/configuracion/equipo'
     | '/configuracion/modulos'
     | '/configuracion/pagos'
@@ -326,6 +350,8 @@ export interface FileRouteTypes {
     | '/_authenticated/locales/'
     | '/_authenticated/panel/'
     | '/_authenticated/settings/'
+    | '/_authenticated/configuracion/asistente/'
+    | '/_authenticated/configuracion/conocimiento/'
     | '/_authenticated/configuracion/equipo/'
     | '/_authenticated/configuracion/modulos/'
     | '/_authenticated/configuracion/pagos/'
@@ -480,6 +506,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/configuracion/asistente/': {
+      id: '/_authenticated/configuracion/asistente/'
+      path: '/configuracion/asistente'
+      fullPath: '/configuracion/asistente/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionAsistenteIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/configuracion/conocimiento/': {
+      id: '/_authenticated/configuracion/conocimiento/'
+      path: '/configuracion/conocimiento'
+      fullPath: '/configuracion/conocimiento/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionConocimientoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracion/equipo/': {
       id: '/_authenticated/configuracion/equipo/'
       path: '/configuracion/equipo'
@@ -552,6 +592,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCocinaIndexRoute: typeof AuthenticatedCocinaIndexRoute
   AuthenticatedLocalesIndexRoute: typeof AuthenticatedLocalesIndexRoute
   AuthenticatedPanelIndexRoute: typeof AuthenticatedPanelIndexRoute
+  AuthenticatedConfiguracionAsistenteIndexRoute: typeof AuthenticatedConfiguracionAsistenteIndexRoute
+  AuthenticatedConfiguracionConocimientoIndexRoute: typeof AuthenticatedConfiguracionConocimientoIndexRoute
   AuthenticatedConfiguracionEquipoIndexRoute: typeof AuthenticatedConfiguracionEquipoIndexRoute
   AuthenticatedConfiguracionModulosIndexRoute: typeof AuthenticatedConfiguracionModulosIndexRoute
   AuthenticatedConfiguracionPagosIndexRoute: typeof AuthenticatedConfiguracionPagosIndexRoute
@@ -569,6 +611,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCocinaIndexRoute: AuthenticatedCocinaIndexRoute,
   AuthenticatedLocalesIndexRoute: AuthenticatedLocalesIndexRoute,
   AuthenticatedPanelIndexRoute: AuthenticatedPanelIndexRoute,
+  AuthenticatedConfiguracionAsistenteIndexRoute:
+    AuthenticatedConfiguracionAsistenteIndexRoute,
+  AuthenticatedConfiguracionConocimientoIndexRoute:
+    AuthenticatedConfiguracionConocimientoIndexRoute,
   AuthenticatedConfiguracionEquipoIndexRoute:
     AuthenticatedConfiguracionEquipoIndexRoute,
   AuthenticatedConfiguracionModulosIndexRoute:

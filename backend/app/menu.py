@@ -1,10 +1,12 @@
-"""Rutas de la carta (ex main.py + CRUD items de saas-cola-2).
+"""Rutas de la carta (ex main.py + CRUD items de saas-cola-2; el PATCH
+completo con stock llega con carta-inventario-bot).
 
 GET /api/menu público; POST /api/menu/toggle edita precio/disponibilidad;
-POST/DELETE /api/menu/items = CRUD de platos (alta con id autogenerado m1,
-m2…, write-through vía persist). Todo lo que muta exige manage_menu
-(owner+admin, change roles-equipo); los items además son del dueño del
-tenant (check_tenant_owner), el toggle sigue sin ese check como siempre.
+POST/PATCH/DELETE /api/menu/items = CRUD de platos (alta con id autogenerado
+m1, m2…, edición completa por fila, write-through vía persist). Todo lo que
+muta exige manage_menu (owner+admin, change roles-equipo); los items además
+son del dueño del tenant (check_tenant_owner: dueño/admin DEL local), el
+toggle sigue sin ese check como siempre.
 """
 import re
 
@@ -14,7 +16,7 @@ from . import data, persist
 from .deps import check_tenant_owner
 from .models import User
 from .roles import require_perm
-from .schemas import MenuItemIn, MenuToggleIn
+from .schemas import STOCK_UNSET, MenuItemIn, MenuItemPatchIn, MenuToggleIn
 
 router = APIRouter(prefix="/api/menu", tags=["menu"])
 
@@ -24,6 +26,18 @@ def menu(tenant: str):
     if tenant not in data.MENUS:
         raise HTTPException(404, "tenant?")
     return {"tenant": data.TENANTS[tenant], "items": data.get_menu(tenant)}
+
+
+def _validar_precio(valor) -> float:
+    """Precio del payload (float | str): humano en el 400, igual que siempre.
+    Lo comparten toggle y PATCH para que "abc" y -5 respondan lo mismo."""
+    try:
+        p = round(float(valor), 2)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Precio inválido: escribe un número, ej 32.5") from None
+    if not (0 < p <= 9999):
+        raise HTTPException(400, "Precio fuera de rango (0–9999)")
+    return p
 
 
 @router.post("/toggle")
@@ -37,13 +51,7 @@ def toggle(payload: MenuToggleIn,
         raise HTTPException(404, "item?")
     cambio = False
     if payload.precio is not None:
-        try:
-            p = round(float(payload.precio), 2)
-        except (TypeError, ValueError):
-            raise HTTPException(400, "Precio inválido: escribe un número, ej 32.5")
-        if not (0 < p <= 9999):
-            raise HTTPException(400, "Precio fuera de rango (0–9999)")
-        it["precio"] = p
+        it["precio"] = _validar_precio(payload.precio)
         cambio = True
     if payload.disponible is not None:
         it["disponible"] = bool(payload.disponible)
@@ -78,6 +86,45 @@ def add_item(payload: MenuItemIn,
     persist.menu_write(payload.tenant, item)  # write-through: fila + espejo
     # el espejo ya tiene el dict completo (con foto, la clave "desc" de logic)
     return next(x for x in data.MENUS[payload.tenant] if x["id"] == item["id"])
+
+
+@router.patch("/items")
+def patch_item(payload: MenuItemPatchIn,
+               user: User = Depends(require_perm("manage_menu"))):
+    """Edición completa del plato (nombre/desc/precio/cat/disponible/stock).
+    Solo las claves presentes se tocan. stock sigue la convención del
+    sentinel STOCK_UNSET (ver schemas.py): ausente = no tocar,
+    null = volver a ilimitado, int = fijar (ge=0 ya validó, 422 si negativo).
+    """
+    check_tenant_owner(payload.tenant, user)
+    it = next((x for x in data.MENUS.get(payload.tenant, [])
+               if x["id"] == payload.id), None)
+    if not it:
+        raise HTTPException(404, "item?")
+    cambio = False
+    if payload.nombre is not None:
+        it["nombre"] = payload.nombre.strip()
+        cambio = True
+    if payload.desc is not None:
+        it["desc"] = payload.desc
+        cambio = True
+    if payload.precio is not None:
+        it["precio"] = _validar_precio(payload.precio)
+        cambio = True
+    if payload.cat is not None:
+        it["cat"] = payload.cat
+        cambio = True
+    if payload.disponible is not None:
+        it["disponible"] = bool(payload.disponible)
+        cambio = True
+    # stock: la clave vino explícita (model_fields_set) Y el valor no es el
+    # sentinel (construcción directa con el sentinel = ausencia igualmente).
+    if "stock" in payload.model_fields_set and payload.stock is not STOCK_UNSET:
+        it["stock"] = payload.stock
+        cambio = True
+    if cambio:
+        persist.menu_write(payload.tenant, it)  # write-through: fila + espejo
+    return it
 
 
 @router.delete("/items")

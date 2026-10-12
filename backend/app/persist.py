@@ -13,7 +13,8 @@ firma). Este módulo las convierte en un espejo de SQLite:
 
 Cuidados:
 - Los dicts del espejo usan las claves que logic espera ("desc", no la
-  columna desc_) y "foto" va persistida en menu_item.
+  columna desc_) y "foto" va persistida en menu_item. Desde
+  carta-inventario-bot también viaja "stock" (None = ilimitado).
 - El dict del espejo de tenant rellena culqi_comision (0.0344, el valor de
   los seed) porque logic.culqi_link la lee: la columna no existe en la
   tabla Tenant por contrato, así que el espejo aporta el default.
@@ -72,7 +73,9 @@ def _seed_menu_rows(session: Session) -> None:
             session.add(MenuItem(id=it["id"], tenant_id=tenant,
                                  nombre=it["nombre"], desc_=it["desc"],
                                  precio=it["precio"], cat=it["cat"],
-                                 disponible=it["disponible"], tags=it["tags"],
+                                 disponible=it["disponible"],
+                                 stock=it.get("stock"),  # None = ilimitado
+                                 tags=it["tags"],
                                  foto=_foto(it["id"])))
 
 
@@ -104,10 +107,11 @@ def _load_tenant_mirror(rows: list[Tenant]) -> None:
 
 
 def _menu_dict(row: MenuItem) -> dict:
-    """El dict que logic espera: columna desc_ → clave "desc"."""
+    """El dict que logic espera: columna desc_ → clave "desc". stock viaja
+    tal cual (None = ilimitado) para que el NLU lo lea sin cambio de forma."""
     return {"id": row.id, "nombre": row.nombre, "precio": row.precio,
             "cat": row.cat, "desc": row.desc_, "disponible": row.disponible,
-            "tags": row.tags, "foto": row.foto}
+            "stock": row.stock, "tags": row.tags, "foto": row.foto}
 
 
 def _order_dict(row: Order) -> dict:
@@ -188,11 +192,18 @@ def tenant_mirror(row: Tenant) -> None:
 
 
 def menu_write(tenant: str, item: dict) -> None:
-    """Write-through de un plato: upsert menu_item + reflejo en data.MENUS."""
+    """Write-through de un plato: upsert menu_item + reflejo en data.MENUS.
+
+    stock va con default None (ilimitado): el dict del espejo lo lleva desde
+    carta-inventario-bot, y un alta sin la clave nace ilimitada. El decremento
+    por pedido (orders.py) y la edición por PATCH (menu.py) también persisten
+    por aquí — el espejo y la fila siempre dicen lo mismo.
+    """
     row = MenuItem(id=item["id"], tenant_id=tenant,
                    nombre=item.get("nombre", ""), desc_=item.get("desc", ""),
                    precio=float(item.get("precio", 0)), cat=item.get("cat", ""),
                    disponible=bool(item.get("disponible", True)),
+                   stock=item.get("stock"),
                    tags=item.get("tags", ""),
                    foto=item.get("foto", _foto(item["id"])))
     with Session(engine) as session:

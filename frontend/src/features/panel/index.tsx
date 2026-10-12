@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -12,7 +12,7 @@ import {
   type DragOverEvent,
 } from '@dnd-kit/core'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { RefreshCw } from 'lucide-react'
+import { Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { NotificationsBell } from '@/components/layout/notifications-bell'
@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { csvErrorDetail, descargarCsv } from '@/lib/csv-download'
 import { useAdvanceOrder } from '@/hooks/use-advance-order'
 import { useDemoReset } from '@/hooks/use-demo-reset'
 import { useDishNames } from '@/hooks/use-dish-names'
@@ -77,6 +78,32 @@ export function Panel() {
   const { advance, isPending: isAdvancing } = useAdvanceOrder(tenant)
   const dishNames = useDishNames()
   const demoReset = useDemoReset()
+
+  // Exportar CSV (contrato endurecer-local): GET /api/reports/pedidos.csv
+  // con el filtro de local actual (sin filtro = todos, como /api/orders).
+  const [descargandoCsv, setDescargandoCsv] = useState(false)
+
+  async function exportarCsv() {
+    setDescargandoCsv(true)
+    try {
+      await descargarCsv(
+        '/api/reports/pedidos.csv',
+        tenant === 'todos' ? {} : { tenant },
+        `pedidos-${tenant}.csv`
+      )
+      toast.success('Pedidos exportados', {
+        description: 'CSV con BOM UTF-8 — ábrelo directo en Excel.',
+      })
+    } catch (err) {
+      toast.error('No se pudo exportar el CSV', {
+        description:
+          (await csvErrorDetail(err)) ??
+          'Revisa que el backend esté arriba e inténtalo de nuevo.',
+      })
+    } finally {
+      setDescargandoCsv(false)
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -185,6 +212,20 @@ export function Panel() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant='outline'
+              size='sm'
+              className='gap-1.5'
+              disabled={descargandoCsv}
+              onClick={() => void exportarCsv()}
+            >
+              {descargandoCsv ? (
+                <RefreshCw className='size-3.5 animate-spin' />
+              ) : (
+                <Download className='size-3.5' />
+              )}
+              {descargandoCsv ? 'Exportando…' : 'Exportar CSV'}
+            </Button>
             <Button
               variant='outline'
               size='icon'

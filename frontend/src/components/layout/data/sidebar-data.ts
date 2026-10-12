@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   MessageCircle,
+  MessageSquareText,
   Palette,
   PlugZap,
   Settings,
@@ -121,6 +122,13 @@ export const sidebarData: SidebarData = {
           title: 'Canal de WhatsApp',
           url: '/configuracion/whatsapp',
           icon: PlugZap,
+        },
+        {
+          // Plantillas WhatsApp (endurecer-local): mensajes que INICIA el
+          // negocio — promos, avisos — con aprobación de Meta.
+          title: 'Plantillas',
+          url: '/configuracion/plantillas',
+          icon: MessageSquareText,
         },
         {
           // Base de conocimiento (carta-inventario-bot): horarios, ubicación

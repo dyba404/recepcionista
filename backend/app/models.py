@@ -5,6 +5,8 @@ user (sesión), mensajería: conversation, message, canned_response,
 module_config, whatsapp_channel; pedidos/carta: order, menu_item
 (saas-cola-1); locales/pagos: tenant, payment (saas-cola-2); y
 carta-inventario-bot: knowledge_entry (KB temática) y bot_config.
+endurecer-local añade invitation (invitaciones por enlace) y watemplate
+(espejo de plantillas WhatsApp), y las columnas plan/trial_hasta del tenant.
 store.ORDERS, data.MENUS y data.TENANTS siguen siendo el espejo en memoria
 que lee todo el código — persist.py los hidrata de estas tablas y les hace
 write-through en cada mutación.
@@ -191,10 +193,13 @@ class Horario(SQLModel, table=True):
 # ── locales + ledger (change saas-cola-2: SaaS de verdad) ──
 
 # Tenant es la tabla real de locales: data.TENANTS queda como espejo en memoria
-# (igual que data.MENUS). id = slug ("faro", "cevicheria-x"); los ids seed
+# (igual que data.MENUS). id = slug ("faro", "cevicheria-el-faro"); los ids seed
 # faro/brasa/juana NO cambian. culqi_comision NO vive aquí (el contrato define
 # estas columnas): el espejo la rellena con el default 0.0344 al reconstruirse
 # (los 3 seed usan exactamente ese valor), que es lo que logic.culqi_link lee.
+# plan/trial_hasta (endurecer-local E): "trial" es el default del modelo (el
+# del contrato), pero los 3 seed nacen "basico" (persist._seed_tenant_rows)
+# y el trial de 14 días se fija en crear_tenant (registro/alta de local).
 class Tenant(SQLModel, table=True):
     id: str = Field(primary_key=True)  # slug: "faro" | "cevicheria-el-faro"
     nombre: str
@@ -204,6 +209,8 @@ class Tenant(SQLModel, table=True):
     tiempo: str = Field(default="30-40 min")
     yape_qr: str = Field(default="")
     saludo: str
+    plan: str = Field(default="trial")  # "trial" | "basico" | "pro"
+    trial_hasta: datetime | None = None  # fin del trial (solo nace en el alta)
 
 
 # Payment = ledger: UNA fila por acción de pago (charge real Culqi, webhook
@@ -219,6 +226,42 @@ class Payment(SQLModel, table=True):
     comision: float = Field(default=0.0)
     estado: str
     detalle: str = Field(default="")
+    created_at: datetime = Field(default_factory=_now)
+
+
+# ── invitaciones por enlace (change endurecer-local, contrato C) ──
+
+# Invitation = alta de equipo por enlace (patrón Chatwoot invite, modo sin
+# email): el dueño/admin genera {token, url} y lo comparte como pueda (el
+# envío por email queda TODO con Resend). token = secrets.token_urlsafe,
+# único; expira a los 7 días; aceptar crea el User con el rol/tenant de la
+# invitación y responde como el login. El router vive en invitaciones.py.
+class Invitation(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    email: str
+    rol: str = Field(default="staff")  # "staff" | "admin" (jamás owner)
+    token: str = Field(index=True, unique=True)
+    expires_at: datetime  # now + 7 días
+    accepted_at: datetime | None = None  # None = pendiente
+    created_at: datetime = Field(default_factory=_now)
+
+
+# ── plantillas WhatsApp (change endurecer-local, contrato D) ──
+
+# WATemplate = espejo local de una plantilla de Meta. estado guarda lo que
+# Meta contestó en su respuesta TAL CUAL ("PENDING_APPROVAL", "APPROVED"…)
+# o "local" cuando se creó sin Meta (falta el env del WABA). El router y el
+# merge con Graph viven en plantillas.py; el envío usa whatsapp.send_template.
+class WATemplate(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    nombre: str  # [a-z0-9_], como exige Meta
+    lenguaje: str = Field(default="es")  # "es" | "en"
+    categoria: str = Field(default="MARKETING")  # MARKETING|UTILITY|AUTHENTICATION
+    estado: str = Field(default="local")  # "local" | el status de Meta tal cual
+    cuerpo: str = Field(default="")
+    meta_id: str | None = None
     created_at: datetime = Field(default_factory=_now)
 
 

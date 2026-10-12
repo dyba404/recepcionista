@@ -2,19 +2,21 @@ import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import {
   AlertTriangle,
+  CircleCheck,
   Info,
   KeyRound,
+  Link2,
   Lock,
   RefreshCw,
-  Shield,
-  ShieldCheck,
   UserRoundPlus,
   Users,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiErrorDetail, isModuleDisabledError } from '@/lib/api'
+import { formatFechaHora } from '@/lib/datetime'
 import type { StaffMember } from '@/lib/types'
 import { useCurrentTenant } from '@/hooks/use-modules'
+import { useInviteLink } from '@/hooks/use-invitaciones'
 import {
   useInviteStaff,
   useRemoveStaff,
@@ -23,7 +25,6 @@ import {
 } from '@/hooks/use-staff'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -50,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Header } from '@/components/layout/header'
 import { NotificationsBell } from '@/components/layout/notifications-bell'
@@ -58,6 +60,10 @@ import { ModuleDisabled } from '@/components/module-disabled'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { CopyButton } from '@/features/whatsapp/components/copy-button'
+import { ETIQUETA_ROL } from './etiqueta-rol'
+import { RolChip } from './components/rol-chip'
+import { InvitacionesPendientes } from './components/invitaciones-pendientes'
 
 /** ¿El error es un 403 que no es "módulo desactivado"? → candado de rol. */
 function es403Staff(error: unknown): boolean {
@@ -74,39 +80,6 @@ function iniciales(nombre: string, email: string): string {
       .slice(0, 2)
       .join('')
       .toUpperCase() || '?'
-  )
-}
-
-/** Etiqueta en español de cada rol (badge, select, dialog). */
-const ETIQUETA_ROL: Record<string, string> = {
-  owner: 'Dueño',
-  admin: 'Administrador',
-  staff: 'Staff',
-}
-
-/** Badge de rol (contrato roles-equipo): Dueño emerald / Administrador azul / Staff ámbar. */
-function RolChip({ rol }: { rol: string }) {
-  if (rol === 'owner') {
-    return (
-      <Badge className='gap-1 bg-emerald-600 text-white'>
-        <ShieldCheck className='size-3' /> Dueño
-      </Badge>
-    )
-  }
-  if (rol === 'admin') {
-    return (
-      <Badge className='gap-1 bg-blue-600 text-white'>
-        <Shield className='size-3' /> Administrador
-      </Badge>
-    )
-  }
-  return (
-    <Badge
-      variant='outline'
-      className='gap-1 border-amber-500/40 text-amber-700 dark:text-amber-400'
-    >
-      <KeyRound className='size-3' /> Staff
-    </Badge>
   )
 }
 
@@ -136,12 +109,14 @@ function RolOpcion({
 
 /**
  * /configuracion/equipo (contrato roles-equipo, patrón Chatwoot): lista del
- * staff con su rol, invitar con rol (solo el dueño invita administradores),
- * cambio de rol en línea con PATCH (staff↔admin, solo dueño) y eliminar según
- * la matriz (owner: staff y admins; admin: solo staff; nunca dueños). Los
- * errores del backend se muestran inline tal cual (409 dup, "último
- * dueño", "Tu rol no permite manage_team"…); el que no tiene manage_team ve
- * el candado (patrón step-canal/pagos).
+ * staff con su rol, invitar con rol (solo el dueño invita administradores)
+ * por contraseña (crea la cuenta aquí) o por enlace (contrato
+ * endurecer-local: POST /api/staff/invite → link copiable + lista de
+ * pendientes con revocación), cambio de rol en línea con PATCH (staff↔admin,
+ * solo dueño) y eliminar según la matriz (owner: staff y admins; admin: solo
+ * staff; nunca dueños). Los errores del backend se muestran inline tal cual
+ * (409 dup, "último dueño", "Tu rol no permite manage_team"…); el que no
+ * tiene manage_team ve el candado (patrón step-canal/pagos).
  */
 export function Equipo() {
   const tenant = useCurrentTenant()
@@ -153,6 +128,7 @@ export function Equipo() {
 
   const staffQuery = useStaff(tenant)
   const invite = useInviteStaff(tenant)
+  const inviteLink = useInviteLink(tenant)
   const remove = useRemoveStaff(tenant)
   const update = useUpdateStaff(tenant)
 
@@ -161,6 +137,11 @@ export function Equipo() {
   const [password, setPassword] = useState('')
   const [rolInvitar, setRolInvitar] = useState<'staff' | 'admin'>('staff')
   const [inviteError, setInviteError] = useState<string | null>(null)
+  /** Modo del form de invitar: crear la cuenta aquí (actual) o enlace. */
+  const [modoInvitar, setModoInvitar] = useState<'password' | 'link'>(
+    'password'
+  )
+  const [linkError, setLinkError] = useState<string | null>(null)
   const [pendienteEliminar, setPendienteEliminar] =
     useState<StaffMember | null>(null)
   const [eliminarError, setEliminarError] = useState<string | null>(null)
@@ -194,6 +175,31 @@ export function Equipo() {
         },
         onError: (err) => {
           setInviteError(apiErrorDetail(err) ?? err.message)
+        },
+      }
+    )
+  }
+
+  /**
+   * Invitar por enlace (contrato endurecer-local): POST /api/staff/invite
+   * con email+rol → el Alert success muestra el link para copiar y su
+   * expiración; el error del backend (409 dup, 403 de rol) va inline.
+   */
+  function invitarPorEnlace() {
+    setLinkError(null)
+    if (!email.trim()) {
+      setLinkError('Escribe el correo de tu integrante.')
+      return
+    }
+    inviteLink.mutate(
+      { email, rol: rolInvitar },
+      {
+        onSuccess: () => {
+          setEmail('')
+          setRolInvitar('staff')
+        },
+        onError: (err) => {
+          setLinkError(apiErrorDetail(err) ?? err.message)
         },
       }
     )
@@ -451,8 +457,9 @@ export function Equipo() {
                 Invitar a tu equipo
               </CardTitle>
               <CardDescription>
-                Crea la cuenta de un integrante con su correo y contraseña; el
-                rol decide qué puede hacer dentro del local.
+                Crea la cuenta de una vez (con contraseña) o genera un enlace
+                para que tu integrante la cree él mismo; el rol decide qué
+                puede hacer dentro del local.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -469,110 +476,256 @@ export function Equipo() {
                 </Alert>
               )}
 
-              <form
-                className='space-y-4'
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  invitar()
-                }}
+              <Tabs
+                value={modoInvitar}
+                onValueChange={(v) => setModoInvitar(v as 'password' | 'link')}
               >
-                <div className='grid gap-4 sm:grid-cols-2'>
-                  <div className='space-y-2'>
-                    <Label htmlFor='staff-nombre'>Nombre</Label>
-                    <Input
-                      id='staff-nombre'
-                      value={nombre}
-                      onChange={(e) => setNombre(e.target.value)}
-                      placeholder='Ej. Marco Cocina'
-                      autoComplete='off'
-                      disabled={!puedeGestionar || invite.isPending}
-                    />
-                  </div>
-                  <div className='space-y-2'>
-                    <Label htmlFor='staff-email'>Correo</Label>
-                    <Input
-                      id='staff-email'
-                      type='email'
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder='integrante@local.pe'
-                      autoComplete='off'
-                      disabled={!puedeGestionar || invite.isPending}
-                    />
-                  </div>
-                </div>
-                <div className='space-y-2'>
-                  <Label htmlFor='staff-password'>Contraseña</Label>
-                  <Input
-                    id='staff-password'
-                    type='password'
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder='Mínimo 8 caracteres'
-                    autoComplete='new-password'
-                    disabled={!puedeGestionar || invite.isPending}
-                  />
-                  <p className='text-xs text-muted-foreground'>
-                    Se la compartes a tu integrante para su primer ingreso; que
-                    la cambie después.
-                  </p>
-                </div>
-                <div className='space-y-2'>
-                  <Label htmlFor='staff-rol'>Rol</Label>
-                  <Select
-                    value={rolInvitar}
-                    onValueChange={(v) => setRolInvitar(v as 'staff' | 'admin')}
-                    disabled={!puedeGestionar || invite.isPending}
-                  >
-                    <SelectTrigger id='staff-rol' className='w-full'>
-                      {rolInvitar === 'admin' ? 'Administrador' : 'Staff'}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='staff'>
-                        <RolOpcion
-                          etiqueta='Staff'
-                          descripcion='Atiende el inbox y avanza pedidos'
-                        />
-                      </SelectItem>
-                      <SelectItem value='admin' disabled={!isOwner}>
-                        <RolOpcion
-                          etiqueta='Administrador'
-                          descripcion='Además gestiona equipo, carta y configuración'
-                          candado={!isOwner}
-                        />
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {!isOwner && (
-                    <p className='flex items-center gap-1.5 text-xs text-muted-foreground'>
-                      <Lock className='size-3.5 shrink-0' />
-                      Solo el dueño invita administradores.
-                    </p>
-                  )}
-                </div>
-                <Button
-                  type='submit'
-                  className='gap-1.5'
-                  disabled={!puedeGestionar || invite.isPending}
-                >
-                  {invite.isPending ? (
-                    <RefreshCw className='size-4 animate-spin' />
-                  ) : (
-                    <UserRoundPlus className='size-4' />
-                  )}
-                  {invite.isPending ? 'Creando cuenta…' : 'Invitar al equipo'}
-                </Button>
+                <TabsList className='grid w-full grid-cols-2 sm:max-w-md'>
+                  <TabsTrigger value='password' className='gap-1.5'>
+                    <KeyRound className='size-3.5' />
+                    Con contraseña (rápido)
+                  </TabsTrigger>
+                  <TabsTrigger value='link' className='gap-1.5'>
+                    <Link2 className='size-3.5' />
+                    Por enlace
+                  </TabsTrigger>
+                </TabsList>
 
-                {invite.isError && inviteError && (
-                  <Alert variant='destructive'>
-                    <AlertTriangle className='size-4' />
-                    <AlertTitle>No se pudo invitar</AlertTitle>
-                    <AlertDescription>{inviteError}</AlertDescription>
-                  </Alert>
-                )}
-              </form>
+                {/* ===== Modo actual: crear la cuenta aquí mismo ===== */}
+                <TabsContent value='password'>
+                  <form
+                    className='space-y-4'
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      invitar()
+                    }}
+                  >
+                    <div className='grid gap-4 sm:grid-cols-2'>
+                      <div className='space-y-2'>
+                        <Label htmlFor='staff-nombre'>Nombre</Label>
+                        <Input
+                          id='staff-nombre'
+                          value={nombre}
+                          onChange={(e) => setNombre(e.target.value)}
+                          placeholder='Ej. Marco Cocina'
+                          autoComplete='off'
+                          disabled={!puedeGestionar || invite.isPending}
+                        />
+                      </div>
+                      <div className='space-y-2'>
+                        <Label htmlFor='staff-email'>Correo</Label>
+                        <Input
+                          id='staff-email'
+                          type='email'
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder='integrante@local.pe'
+                          autoComplete='off'
+                          disabled={!puedeGestionar || invite.isPending}
+                        />
+                      </div>
+                    </div>
+                    <div className='space-y-2'>
+                      <Label htmlFor='staff-password'>Contraseña</Label>
+                      <Input
+                        id='staff-password'
+                        type='password'
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder='Mínimo 8 caracteres'
+                        autoComplete='new-password'
+                        disabled={!puedeGestionar || invite.isPending}
+                      />
+                      <p className='text-xs text-muted-foreground'>
+                        Se la compartes a tu integrante para su primer ingreso; que
+                        la cambie después.
+                      </p>
+                    </div>
+                    <div className='space-y-2'>
+                      <Label htmlFor='staff-rol'>Rol</Label>
+                      <Select
+                        value={rolInvitar}
+                        onValueChange={(v) =>
+                          setRolInvitar(v as 'staff' | 'admin')
+                        }
+                        disabled={!puedeGestionar || invite.isPending}
+                      >
+                        <SelectTrigger id='staff-rol' className='w-full'>
+                          {rolInvitar === 'admin' ? 'Administrador' : 'Staff'}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='staff'>
+                            <RolOpcion
+                              etiqueta='Staff'
+                              descripcion='Atiende el inbox y avanza pedidos'
+                            />
+                          </SelectItem>
+                          <SelectItem value='admin' disabled={!isOwner}>
+                            <RolOpcion
+                              etiqueta='Administrador'
+                              descripcion='Además gestiona equipo, carta y configuración'
+                              candado={!isOwner}
+                            />
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!isOwner && (
+                        <p className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                          <Lock className='size-3.5 shrink-0' />
+                          Solo el dueño invita administradores.
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type='submit'
+                      className='gap-1.5'
+                      disabled={!puedeGestionar || invite.isPending}
+                    >
+                      {invite.isPending ? (
+                        <RefreshCw className='size-4 animate-spin' />
+                      ) : (
+                        <UserRoundPlus className='size-4' />
+                      )}
+                      {invite.isPending ? 'Creando cuenta…' : 'Invitar al equipo'}
+                    </Button>
+
+                    {invite.isError && inviteError && (
+                      <Alert variant='destructive'>
+                        <AlertTriangle className='size-4' />
+                        <AlertTitle>No se pudo invitar</AlertTitle>
+                        <AlertDescription>{inviteError}</AlertDescription>
+                      </Alert>
+                    )}
+                  </form>
+                </TabsContent>
+
+                {/* ===== Modo enlace (contrato endurecer-local, sección C) ===== */}
+                <TabsContent value='link'>
+                  <form
+                    className='space-y-4'
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      invitarPorEnlace()
+                    }}
+                  >
+                    <div className='grid gap-4 sm:grid-cols-2'>
+                      <div className='space-y-2'>
+                        <Label htmlFor='invite-link-email'>Correo</Label>
+                        <Input
+                          id='invite-link-email'
+                          type='email'
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder='integrante@local.pe'
+                          autoComplete='off'
+                          disabled={!puedeGestionar || inviteLink.isPending}
+                        />
+                        <p className='text-xs text-muted-foreground'>
+                          Solo para saber a quién pertenece el enlace: el
+                          correo se valida al aceptar la invitación.
+                        </p>
+                      </div>
+                      <div className='space-y-2'>
+                        <Label htmlFor='invite-link-rol'>Rol</Label>
+                        <Select
+                          value={rolInvitar}
+                          onValueChange={(v) =>
+                            setRolInvitar(v as 'staff' | 'admin')
+                          }
+                          disabled={!puedeGestionar || inviteLink.isPending}
+                        >
+                          <SelectTrigger id='invite-link-rol' className='w-full'>
+                            {rolInvitar === 'admin' ? 'Administrador' : 'Staff'}
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='staff'>
+                              <RolOpcion
+                                etiqueta='Staff'
+                                descripcion='Atiende el inbox y avanza pedidos'
+                              />
+                            </SelectItem>
+                            <SelectItem value='admin' disabled={!isOwner}>
+                              <RolOpcion
+                                etiqueta='Administrador'
+                                descripcion='Además gestiona equipo, carta y configuración'
+                                candado={!isOwner}
+                              />
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {!isOwner && (
+                          <p className='flex items-center gap-1.5 text-xs text-muted-foreground'>
+                            <Lock className='size-3.5 shrink-0' />
+                            Solo el dueño invita administradores.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <p className='text-xs text-muted-foreground'>
+                      Se genera un enlace válido 7 días: tu integrante lo abre
+                      y crea su propia contraseña. El envío por correo llega
+                      con Resend (pendiente) — mientras, compártelo por
+                      WhatsApp.
+                    </p>
+                    <Button
+                      type='submit'
+                      className='gap-1.5'
+                      disabled={!puedeGestionar || inviteLink.isPending}
+                    >
+                      {inviteLink.isPending ? (
+                        <RefreshCw className='size-4 animate-spin' />
+                      ) : (
+                        <Link2 className='size-4' />
+                      )}
+                      {inviteLink.isPending
+                        ? 'Creando invitación…'
+                        : 'Crear invitación'}
+                    </Button>
+
+                    {inviteLink.isError && linkError && (
+                      <Alert variant='destructive'>
+                        <AlertTriangle className='size-4' />
+                        <AlertTitle>No se pudo crear la invitación</AlertTitle>
+                        <AlertDescription>{linkError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {inviteLink.data && (
+                      <Alert className='border-emerald-500/40 text-emerald-700 dark:text-emerald-400'>
+                        <CircleCheck className='size-4' />
+                        <AlertTitle>
+                          Invitación creada para{' '}
+                          {inviteLink.variables?.email ?? 'tu integrante'}
+                        </AlertTitle>
+                        <AlertDescription>
+                          <p className='mb-2'>
+                            Comparte este enlace — expira{' '}
+                            {formatFechaHora(inviteLink.data.expires_at)}:
+                          </p>
+                          <span className='flex items-center gap-1'>
+                            <Input
+                              readOnly
+                              value={`${window.location.origin}${inviteLink.data.url}`}
+                              aria-label='Enlace de invitación'
+                              className='h-8 font-mono text-xs'
+                              onFocus={(e) => e.currentTarget.select()}
+                            />
+                            <CopyButton
+                              value={`${window.location.origin}${inviteLink.data.url}`}
+                              label='Enlace de invitación'
+                              className='size-8'
+                            />
+                          </span>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </form>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
+
+          {puedeGestionar && <InvitacionesPendientes tenant={tenant} />}
 
           <Card>
             <CardHeader>

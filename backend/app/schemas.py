@@ -128,6 +128,14 @@ class TenantPatchIn(BaseModel):
     yape_qr: str | None = None
 
 
+class PlanPatchIn(BaseModel):
+    """Activación de plan (endurecer-local E): trial→basico/pro. Literal
+    (422 con otro valor): volver a trial no es una activación. El PATCH es
+    un guardado simple — el cobro automático llega con Culqi Suscripciones
+    (pendiente de cuenta externa) y la respuesta lleva la nota honesta."""
+    plan: Literal["basico", "pro"]
+
+
 class NegocioIn(BaseModel):
     """Sección opcional de /api/auth/register: crea el local Y al usuario
     como owner de él, en una sola transacción."""

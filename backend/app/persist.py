@@ -17,7 +17,9 @@ Cuidados:
   carta-inventario-bot también viaja "stock" (None = ilimitado).
 - El dict del espejo de tenant rellena culqi_comision (0.0344, el valor de
   los seed) porque logic.culqi_link la lee: la columna no existe en la
-  tabla Tenant por contrato, así que el espejo aporta el default.
+  tabla Tenant por contrato, así que el espejo aporta el default. Desde
+  endurecer-local también viaja plan/trial_hasta (solo lectura del SaaS:
+  el badge del trial y el PATCH del plan; nada de brain/logic los usa).
 - Todo tenant del espejo tiene su clave en data.MENUS (aunque sea []): un
   local recién creado no rompe /api/menu ni logic.calc_total.
 - created_at de Order se fija en el primer write y NO se pisa en updates.
@@ -60,11 +62,15 @@ def _foto(item_id: str) -> str:
 
 def _seed_tenant_rows(session: Session) -> None:
     for t in _SEED_TENANTS.values():
+        # endurecer-local E: los 3 locales del demo nacen en plan "basico"
+        # SIN trial (documentado): el demo no expira; el trial de 14 días
+        # es solo de los locales NUEVOS (crear_tenant).
         session.add(Tenant(id=t["id"], nombre=t["nombre"],
                            rubro=t.get("rubro", "comidas"),
                            distrito=t["distrito"],
                            delivery=float(t["delivery"]), tiempo=t["tiempo"],
-                           yape_qr=t["yape_qr"], saludo=t["saludo"]))
+                           yape_qr=t["yape_qr"], saludo=t["saludo"],
+                           plan="basico", trial_hasta=None))
 
 
 def _seed_menu_rows(session: Session) -> None:
@@ -94,11 +100,15 @@ def _seed_order_rows(session: Session) -> None:
 def tenant_dict(row: Tenant) -> dict:
     """El dict que brain/logic esperan: TODAS las claves de data.TENANTS.
     culqi_comision se rellena con el default (la tabla no la guarda: los 3
-    seed usan justo 0.0344, así que el round-trip es idéntico)."""
+    seed usan justo 0.0344, así que el round-trip es idéntico). plan y
+    trial_hasta (endurecer-local E) viajan al espejo para que GET /api/tenants
+    los muestre: brain/logic/KPIs no los leen, solo el SaaS (badge del
+    trial, PATCH del plan)."""
     return {"id": row.id, "nombre": row.nombre, "rubro": row.rubro,
             "distrito": row.distrito, "delivery": row.delivery,
             "tiempo": row.tiempo, "yape_qr": row.yape_qr,
-            "culqi_comision": CULQI_COMISION_DEFAULT, "saludo": row.saludo}
+            "culqi_comision": CULQI_COMISION_DEFAULT, "saludo": row.saludo,
+            "plan": row.plan, "trial_hasta": row.trial_hasta}
 
 
 def _load_tenant_mirror(rows: list[Tenant]) -> None:

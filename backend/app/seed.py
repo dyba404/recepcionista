@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from . import bot, data, horarios, modules, security
 from .db import engine, init_db
-from .models import BotConfig, KnowledgeEntry, ModuleConfig, User
+from .models import BotConfig, KnowledgeEntry, ModuleConfig, Tenant, User
 
 DEMO_USERS = [
     # (email, password, nombre, tenant, rol) — credenciales de sandbox
@@ -67,4 +67,13 @@ def run() -> None:
         # default con el que opera estado_local cuando faltan (horarios.py).
         for tid in data.TENANTS:
             horarios.seed_horarios(session, tid)
+        # endurecer-local E: los 3 locales DEMO quedan en plan "basico" (sin
+        # trial — el demo no expira). Solo toca el default que deja el ALTER
+        # de la migración sobre una BD preexistente: un plan activado por el
+        # owner (basico/pro) jamás se pisa, y el trial solo existe en el alta.
+        for tid in ("faro", "brasa", "juana"):
+            row = session.get(Tenant, tid)
+            if row is not None and row.plan == "trial":
+                row.plan = "basico"
+                session.add(row)
         session.commit()

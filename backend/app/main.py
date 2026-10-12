@@ -24,12 +24,16 @@ from . import (  # noqa: F401 — import dispara los routers de dominio
     demo,
     horarios,
     inbox,
+    invitaciones,
     kb,
     menu,
     modules,
     orders,
     payments,
     persist,
+    planes,
+    plantillas,
+    reports,
     seed,
     staff,
     tenants,
@@ -51,7 +55,11 @@ app.include_router(modules.router)
 app.include_router(inbox.router)
 app.include_router(whatsapp.router)
 app.include_router(whatsapp.webhook_router)
+app.include_router(plantillas.router)  # plantillas WhatsApp (endurecer-local D)
 app.include_router(payments.router)  # cuenta Culqi, cobros y ledger
+app.include_router(reports.router)  # CSV: pedidos/ledger (endurecer-local A)
+app.include_router(invitaciones.router)  # invitaciones por enlace (C)
+app.include_router(planes.router)  # pricing público (E)
 app.include_router(orders.router)
 app.include_router(chat.router)
 app.include_router(menu.router)

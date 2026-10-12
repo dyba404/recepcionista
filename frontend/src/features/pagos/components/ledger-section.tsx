@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { isAxiosError } from 'axios'
 import { Link } from '@tanstack/react-router'
-import { Lock, ReceiptText, RefreshCw } from 'lucide-react'
+import { Download, Lock, ReceiptText, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { apiErrorDetail, isModuleDisabledError } from '@/lib/api'
+import { csvErrorDetail, descargarCsv } from '@/lib/csv-download'
 import { formatFechaHora } from '@/lib/datetime'
 import { penFormatter } from '@/lib/order-utils'
 import type { LedgerEntry, LedgerEstado } from '@/lib/types'
@@ -11,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -25,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useLedger } from '@/hooks/use-payments-ledger'
 
 const GATEWAY_LABEL: Record<string, string> = {
@@ -63,6 +68,32 @@ export function LedgerSection({ tenant }: { tenant: string }) {
   const ledgerQuery = useLedger(tenant)
   const entries = ledgerQuery.data ?? []
 
+  // Exportar CSV (contrato endurecer-local): GET /api/reports/ledger.csv
+  // (view_ledger — el botón solo aparece si el ledger cargó).
+  const [descargandoCsv, setDescargandoCsv] = useState(false)
+
+  async function exportarCsv() {
+    setDescargandoCsv(true)
+    try {
+      await descargarCsv(
+        '/api/reports/ledger.csv',
+        { tenant },
+        `ledger-${tenant}.csv`
+      )
+      toast.success('Pagos exportados', {
+        description: 'CSV con BOM UTF-8 — ábrelo directo en Excel.',
+      })
+    } catch (err) {
+      toast.error('No se pudo exportar el CSV', {
+        description:
+          (await csvErrorDetail(err)) ??
+          'Revisa que el backend esté arriba e inténtalo de nuevo.',
+      })
+    } finally {
+      setDescargandoCsv(false)
+    }
+  }
+
   return (
     <Card id='pagos-del-local'>
       <CardHeader>
@@ -74,6 +105,29 @@ export function LedgerSection({ tenant }: { tenant: string }) {
           Cada cobro queda registrado por el servidor — tarjeta real,
           simulado o Yape — con su verificación. Últimos 100.
         </CardDescription>
+        {!ledgerQuery.isError && (
+          <CardAction>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  className='gap-1.5'
+                  disabled={descargandoCsv}
+                  onClick={() => void exportarCsv()}
+                >
+                  {descargandoCsv ? (
+                    <RefreshCw className='size-3.5 animate-spin' />
+                  ) : (
+                    <Download className='size-3.5' />
+                  )}
+                  {descargandoCsv ? 'Exportando…' : 'Exportar CSV'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Últimos 100 pagos</TooltipContent>
+            </Tooltip>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className='space-y-4'>
         {ledgerQuery.isPending && (

@@ -8,7 +8,7 @@ import pytest
 from conftest import client
 from sqlmodel import Session, select
 
-from app import payments
+from app import crypto, payments
 from app.db import engine
 from app.models import PaymentAccount
 
@@ -115,7 +115,12 @@ def test_setup_valida_en_vivo_y_guarda_conectada(owner_headers, monkeypatch):
 
     filas = _filas()
     assert len(filas) == 1
-    assert filas[0].secret_key == "sk_test_DEL-LOCAL"
+    # endurecer-local B (ajuste mínimo del assert original): la secret ya NO
+    # se guarda plaintext — en la BD cruda viaja cifrada (Fernet, "gAAA…") y
+    # crypto.descifrar la recupera. El plaintext JAMÁS está en la fila.
+    assert filas[0].secret_key != "sk_test_DEL-LOCAL"
+    assert filas[0].secret_key.startswith("gAAA")
+    assert crypto.descifrar(filas[0].secret_key) == "sk_test_DEL-LOCAL"
     assert filas[0].estado == "conectada" and filas[0].verified_at
 
     # GET refleja lo mismo, sin secret
@@ -178,7 +183,8 @@ def test_setup_es_upsert_un_local_una_cuenta(owner_headers, monkeypatch):
     filas = _filas()
     assert len(filas) == 1  # upsert: reemplaza, no duplica
     assert filas[0].public_key == "pk_live_NUEVA"
-    assert filas[0].secret_key == "sk_live_NUEVA"
+    # endurecer-local B: cifrada en la BD, descifrable en el punto de uso
+    assert crypto.descifrar(filas[0].secret_key) == "sk_live_NUEVA"
 
 
 # ── DELETE: vuelta a SIMULADO ──

@@ -56,9 +56,9 @@ import {
 import { useOrders } from '@/hooks/use-orders'
 import { useOrdersWs } from '@/hooks/use-orders-ws'
 import { useTenants } from '@/hooks/use-tenants'
-import { MODULE_KEYS, useModules } from '@/hooks/use-modules'
+import { MODULE_KEYS, useCurrentTenant, useModules } from '@/hooks/use-modules'
 import { ESTADO_LABEL, penFormatter } from '@/lib/order-utils'
-import type { Order, OrderEstado } from '@/lib/types'
+import type { Order, OrderEstado, Tenant } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 /**
@@ -88,6 +88,37 @@ function numeroDePedido(id: string): number {
   return Number.isNaN(n) ? 0 : n
 }
 
+const TONO_PLAN: Record<string, string> = {
+  verde: 'border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  ambar: 'border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400',
+}
+
+/**
+ * Chip fino del plan del local (contrato endurecer-local, sección E): del
+ * GET /api/tenants (que trae plan/trial_hasta), filtrando mi tenant. Con
+ * trial muestra los días restantes — verde si quedan más de 3, ámbar si
+ * menos; sin plan ni fecha (backend viejo) no se muestra nada. Linkea a
+ * /planes para activar uno.
+ */
+function planBadge(t: Tenant | undefined): {
+  texto: string
+  tono: keyof typeof TONO_PLAN
+} | null {
+  if (!t) return null
+  if (t.plan === 'basico') return { texto: 'Plan: Básico', tono: 'verde' }
+  if (t.plan === 'pro') return { texto: 'Plan: Pro', tono: 'verde' }
+  if (t.plan === 'trial' || t.trial_hasta) {
+    if (!t.trial_hasta) return { texto: 'Plan: Prueba', tono: 'verde' }
+    const dias = Math.ceil(
+      (new Date(t.trial_hasta).getTime() - Date.now()) / 86_400_000
+    )
+    if (dias > 3) return { texto: `Prueba · quedan ${dias} días`, tono: 'verde' }
+    if (dias > 0) return { texto: `Prueba · quedan ${dias} días`, tono: 'ambar' }
+    return { texto: 'Prueba · vencida', tono: 'ambar' }
+  }
+  return null
+}
+
 export function Dashboard() {
   const {
     data: orders,
@@ -98,7 +129,13 @@ export function Dashboard() {
   } = useOrders('todos')
   const { data: tenants } = useTenants()
   const { isEnabled } = useModules()
+  const tenantActual = useCurrentTenant()
   useOrdersWs() // invalida ['orders'] ante order.created/updated: KPIs en vivo
+
+  const badge = useMemo(
+    () => planBadge((tenants ?? []).find((t) => t.id === tenantActual)),
+    [tenants, tenantActual]
+  )
 
   const kpis = useMemo(() => {
     const lista = orders ?? []
@@ -146,6 +183,21 @@ export function Dashboard() {
   return (
     <>
       <Header fixed>
+        {/* Chip fino del plan (contrato endurecer-local): linkea a /planes */}
+        {badge && (
+          <Link
+            to='/planes'
+            aria-label={`Plan del local: ${badge.texto} — ver planes`}
+            className='shrink-0'
+          >
+            <Badge
+              variant='outline'
+              className={cn('gap-1.5 font-normal', TONO_PLAN[badge.tono])}
+            >
+              {badge.texto}
+            </Badge>
+          </Link>
+        )}
         <Search className='me-auto' />
         <ThemeSwitch />
         <NotificationsBell />

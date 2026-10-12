@@ -47,6 +47,15 @@ export function SignIn() {
               Crea tu cuenta y tu local
             </Link>
           </p>
+          <p className='text-center text-sm text-muted-foreground'>
+            ¿Cuánto cuesta?{' '}
+            <Link
+              to='/planes'
+              className='font-medium text-primary underline-offset-4 hover:underline'
+            >
+              Ver planes y precios
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </AuthLayout>

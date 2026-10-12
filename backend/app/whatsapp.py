@@ -24,7 +24,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from . import brain, data, ws
+from . import brain, crypto, data, ws
 from .db import engine
 from .deps import get_current_user
 from .models import (
@@ -105,21 +105,20 @@ def _channel_public(ch: WhatsAppChannel) -> dict:
                                     if ch.webhook_verified_at else None)}
 
 
-def send_whatsapp(tenant: str, to: str, text: str) -> dict:
+def _send_payload(tenant: str, payload: dict) -> dict:
     """POST {phone_number_id}/messages con el canal guardado (o env si no hay
-    canal). Retry 1 vez ante errores de red o HTTP 5xx/429; los 4xx son
-    permanentes (reintentar no cambia nada). Devuelve la respuesta de Graph
-    ({"messaging_product", "contacts", "messages":[{"id"}]}); lanza si falla."""
+    canal). El token viaja CIFRADO en la BD y se descifra AQUÍ, en el punto
+    de uso (endurecer-local B). Retry 1 vez ante errores de red o HTTP
+    5xx/429; los 4xx son permanentes (reintentar no cambia nada). Devuelve la
+    respuesta de Graph; lanza si falla (GraphError directo en 4xx)."""
     ch = get_channel(tenant)
     phone_number_id = ((ch.phone_number_id if ch else "")
                        or os.environ.get("META_PHONE_NUMBER_ID", ""))
-    token = ((ch.token if ch else "")
+    token = ((crypto.descifrar(ch.token) if ch else "")
              or os.environ.get("META_PERMANENT_TOKEN", ""))
     if not (phone_number_id and token):
         raise RuntimeError("Canal WhatsApp no configurado: usa /api/whatsapp/setup "
                            "o define META_PHONE_NUMBER_ID/META_PERMANENT_TOKEN")
-    payload = {"messaging_product": "whatsapp", "to": to, "type": "text",
-               "text": {"body": text}}
     last: Exception | None = None
     for _attempt in (1, 2):  # 1 retry, patrón whatsapp-agentkit
         try:
@@ -132,6 +131,28 @@ def send_whatsapp(tenant: str, to: str, text: str) -> dict:
         except Exception as e:  # red/DNS/timeout: reintenta
             last = e
     raise RuntimeError(f"WhatsApp Graph API falló tras 2 intentos: {last}") from last
+
+
+def send_whatsapp(tenant: str, to: str, text: str) -> dict:
+    """Envía un mensaje de TEXTO por Graph API: el mismo path compartido con
+    las plantillas (_send_payload). Devuelve la respuesta de Graph
+    ({"messaging_product", "contacts", "messages":[{"id"}]}); lanza si falla."""
+    return _send_payload(tenant, {"messaging_product": "whatsapp", "to": to,
+                                   "type": "text", "text": {"body": text}})
+
+
+def send_template(tenant: str, to: str, nombre: str, lenguaje: str = "es") -> dict:
+    """Envía una PLANTILLA (endurecer-local D): el MISMO send path que
+    send_whatsapp (canal del tenant o env, mismo retry), pero type=template
+    {name, language[{code}], components} — la forma que exige Meta para los
+    mensajes que INICIA el negocio. El que decide si la plantilla puede
+    enviarse es Meta (debe estar aprobada/en revisión): su error viaja
+    verbatim (GraphError 4xx sube tal cual). Devuelve la respuesta de Graph."""
+    return _send_payload(tenant, {"messaging_product": "whatsapp", "to": to,
+                                  "type": "template",
+                                  "template": {"name": nombre,
+                                                "language": {"code": lenguaje},
+                                                "components": []}})
 
 
 # ── process_incoming: entrada única de mensajes de cliente (ambos canales) ──
@@ -224,7 +245,8 @@ def verify_webhook(hub_mode: str = Query(default="", alias="hub.mode"),
 
 
 def _mark_webhook_verified() -> None:
-    """Deja huella del handshake para el wizard (canal del tenant faro)."""
+    """Deja huella del handshake para el wizard (canal del tenant faro).
+    El token del env se guarda CIFRADO (endurecer-local B)."""
     with Session(engine) as session:
         ch = get_channel("faro", session)
         if ch is None:
@@ -232,7 +254,8 @@ def _mark_webhook_verified() -> None:
             tok = os.environ.get("META_PERMANENT_TOKEN", "")
             if not (pid and tok):
                 return  # sin canal ni env: no hay dónde registrar la marca
-            ch = WhatsAppChannel(tenant_id="faro", phone_number_id=pid, token=tok)
+            ch = WhatsAppChannel(tenant_id="faro", phone_number_id=pid,
+                                 token=crypto.cifrar(tok))
         ch.webhook_verified_at = datetime.now(timezone.utc)
         session.add(ch)
         session.commit()
@@ -329,7 +352,9 @@ def _check_tenant_owner(tenant: str, user: User) -> None:
 def whatsapp_setup(payload: WhatsAppSetupIn,
                    user: User = Depends(require_perm("manage_settings"))):
     """Guarda phone_number_id/token en WhatsAppChannel y marca estado conectado.
-    Parciales: lo que no viene del wizard cae al env META_* o queda como estaba."""
+    El token se guarda CIFRADO (endurecer-local B) y jamás vuelve en ninguna
+    respuesta. Parciales: lo que no viene del wizard cae al env META_* o
+    queda como estaba."""
     _check_tenant_owner(payload.tenant, user)
     with Session(engine) as session:
         ch = get_channel(payload.tenant, session)
@@ -341,12 +366,12 @@ def whatsapp_setup(payload: WhatsAppSetupIn,
                                          "en el wizard o define META_PHONE_NUMBER_ID/"
                                          "META_PERMANENT_TOKEN en el .env")
             ch = WhatsAppChannel(tenant_id=payload.tenant, phone_number_id=pid,
-                                 token=tok)
+                                 token=crypto.cifrar(tok))
         else:
             if payload.phone_number_id:
                 ch.phone_number_id = payload.phone_number_id
             if payload.token:
-                ch.token = payload.token
+                ch.token = crypto.cifrar(payload.token)
         ch.estado = "conectado"
         session.add(ch)
         session.commit()

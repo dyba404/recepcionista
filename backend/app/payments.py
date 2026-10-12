@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from . import data, logic, persist, store, ws
+from . import crypto, data, logic, persist, store, ws
 from .db import engine, get_session
 from .deps import check_tenant_owner, get_current_user, require_owner
 from .models import Payment, PaymentAccount, User
@@ -199,7 +199,8 @@ def cuenta_status(tenant: str, user: User = Depends(get_current_user)):
 @router.post("/cuenta")
 def cuenta_setup(payload: CuentaIn, owner: User = Depends(require_owner)):
     """Guarda/actualiza la cuenta Culqi del local. La secret se valida EN VIVO
-    contra Culqi (401 = rechazo → 400 con el mensaje); la public_key solo por
+    contra Culqi (401 = rechazo → 400 con el mensaje) y se guarda CIFRADA
+    (endurecer-local B: Fernet contra AUTH_SECRET); la public_key solo por
     formato (pk_test_/pk_live_), sin llamada. Upsert por tenant+provider;
     la respuesta lleva la public_key enmascarada, nunca la secret."""
     gates(payload.tenant, "pagos")  # gating real del módulo
@@ -223,9 +224,9 @@ def cuenta_setup(payload: CuentaIn, owner: User = Depends(require_owner)):
         a = get_account(payload.tenant, session)
         if a is None:
             a = PaymentAccount(tenant_id=payload.tenant, provider="culqi",
-                               public_key=pk, secret_key=sk)
+                               public_key=pk, secret_key=crypto.cifrar(sk))
         else:  # upsert: el local ya tenía cuenta, se reemplazan las llaves
-            a.public_key, a.secret_key = pk, sk
+            a.public_key, a.secret_key = pk, crypto.cifrar(sk)
         a.estado = "conectada"
         a.verified_at = datetime.now(timezone.utc)
         session.add(a)
@@ -300,7 +301,9 @@ def culqi_charge(c: CulqiChargeIn):
     o = store.ORDERS[c.order_id]
     gates(o["tenant"], "pagos")  # gating real del módulo
     cuenta = get_account(o["tenant"])
-    sk = ((cuenta.secret_key if cuenta else "")
+    # endurecer-local B: la secret viaja CIFRADA en la BD; se descifra AQUÍ,
+    # en el punto de uso (la validación fue con el plaintext del request).
+    sk = ((crypto.descifrar(cuenta.secret_key) if cuenta else "")
           or os.environ.get("CULQI_SECRET_KEY", ""))
     if not sk:
         raise HTTPException(400, "Sin CULQI_SECRET_KEY: no hay verificación real. "

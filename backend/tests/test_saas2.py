@@ -123,8 +123,13 @@ def test_registro_con_negocio_crea_tenant_owner_y_login():
     t = tenants[slug]
     assert t["nombre"] == "Cevichería La Playa" and t["distrito"] == "Chorrillos"
     assert t["delivery"] == 7.0 and t["saludo"] and t["rubro"] == "comidas"
+    # endurecer-local E (ajuste mínimo del assert de forma exacta): el
+    # dict del tenant ahora también viaja con plan y trial_hasta
     assert set(t) == {"id", "nombre", "rubro", "distrito", "delivery",
-                      "tiempo", "yape_qr", "culqi_comision", "saludo"}
+                      "tiempo", "yape_qr", "culqi_comision", "saludo",
+                      "plan", "trial_hasta"}
+    # el local nuevo nace en trial de 14 días (endurecer-local E)
+    assert t["plan"] == "trial" and t["trial_hasta"]
     # login funciona y el usuario es owner DEL nuevo local
     lr = client.post("/api/auth/login", json={"email": email,
                                               "password": "secreto123"})

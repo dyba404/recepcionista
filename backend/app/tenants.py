@@ -1,13 +1,15 @@
 """Rutas de locales (saas-cola-2): listado público, alta de local (owner
 autenticado), edición por el dueño y QR de Yape real (upload/download).
+endurecer-local E añade PATCH /{id}/plan (activación por el owner).
 
 Los locales viven en SQLite (tabla tenant) y data.TENANTS es su espejo en
 memoria (persist.py hidrata y refleja) — GET devuelve el espejo, que es lo
-mismo que la BD, con la misma forma de siempre.
+mismo que la BD, con la misma forma de siempre (+ plan/trial_hasta).
 """
 import os
 import re
 import unicodedata
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -19,7 +21,7 @@ from .db import get_session
 from .deps import check_tenant_owner, require_owner
 from .models import Tenant, User
 from .roles import require_perm
-from .schemas import TenantCreateIn, TenantPatchIn
+from .schemas import PlanPatchIn, TenantCreateIn, TenantPatchIn
 
 router = APIRouter(prefix="/api/tenants", tags=["tenants"])
 
@@ -57,11 +59,17 @@ def crear_tenant(session: Session, nombre: str, distrito: str,
     """Crea el local DENTRO de la sesión del caller — SIN commit: la
     transacción la cierra quien llama (register crea user+tenant atómicos;
     POST /api/tenants reasigna al creador en el mismo commit). El saludo se
-    genera del nombre, como los seed."""
+    genera del nombre, como los seed.
+
+    endurecer-local E: todo local NUEVO nace en plan "trial" con 14 días de
+    prueba (registro con negocio y POST /api/tenants); los 3 seed del demo
+    nacen "basico" (persist._seed_tenant_rows) para que el demo no expire."""
     nombre = nombre.strip()
     t = Tenant(id=unique_slug(session, nombre), nombre=nombre,
                distrito=distrito.strip(), delivery=float(delivery),
                tiempo=tiempo, yape_qr=yape_qr,
+               plan="trial",
+               trial_hasta=datetime.now(timezone.utc) + timedelta(days=14),
                saludo=f"Hola! Soy el asistente de {nombre}. ¿Te muestro la carta?")
     session.add(t)
     # horarios-pausa-notif-perfil: el local nace con sus 7 filas de horario
@@ -111,6 +119,28 @@ def patch_tenant(tenant_id: str, payload: TenantPatchIn,
     session.refresh(row)
     persist.tenant_mirror(row)
     return persist.tenant_dict(row)
+
+
+@router.patch("/{tenant_id}/plan")
+def patch_plan(tenant_id: str, payload: PlanPatchIn,
+               owner: User = Depends(require_owner),
+               session: Session = Depends(get_session)):
+    """Activa el plan del local (endurecer-local E, SOLO owner). Guardado
+    simple + nota honesta: el cobro automático llega con Culqi
+    Suscripciones (pendiente de cuenta externa). trial_hasta NO se toca —
+    queda como registro de cuándo acabó la prueba."""
+    check_tenant_owner(tenant_id, owner)
+    row = session.get(Tenant, tenant_id)
+    if row is None:  # defensivo: el espejo lo tiene, la fila también debe
+        raise HTTPException(404, "tenant?")
+    row.plan = payload.plan
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    persist.tenant_mirror(row)
+    return {**persist.tenant_dict(row),
+            "nota": "Plan activado en modo manual — el cobro automático "
+                    "llega con Culqi Suscripciones"}
 
 
 # ── QR de Yape real (saas-cola-2) ──

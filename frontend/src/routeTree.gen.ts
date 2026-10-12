@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as authPlanesRouteImport } from './routes/(auth)/planes'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as authSignUpRouteImport } from './routes/(auth)/sign-up'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
@@ -19,6 +20,7 @@ import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
+import { Route as authInvitarTokenRouteImport } from './routes/(auth)/invitar/$token'
 import { Route as AuthenticatedCartaIndexRouteImport } from './routes/_authenticated/carta/index'
 import { Route as AuthenticatedClienteIndexRouteImport } from './routes/_authenticated/cliente/index'
 import { Route as AuthenticatedCocinaIndexRouteImport } from './routes/_authenticated/cocina/index'
@@ -34,12 +36,18 @@ import { Route as AuthenticatedConfiguracionEquipoIndexRouteImport } from './rou
 import { Route as AuthenticatedConfiguracionHorariosIndexRouteImport } from './routes/_authenticated/configuracion/horarios/index'
 import { Route as AuthenticatedConfiguracionModulosIndexRouteImport } from './routes/_authenticated/configuracion/modulos/index'
 import { Route as AuthenticatedConfiguracionPagosIndexRouteImport } from './routes/_authenticated/configuracion/pagos/index'
+import { Route as AuthenticatedConfiguracionPlantillasIndexRouteImport } from './routes/_authenticated/configuracion/plantillas/index'
 import { Route as AuthenticatedConfiguracionWhatsappIndexRouteImport } from './routes/_authenticated/configuracion/whatsapp/index'
 import { Route as AuthenticatedMensajeriaConectarIndexRouteImport } from './routes/_authenticated/mensajeria/conectar/index'
 import { Route as AuthenticatedMensajeriaInboxIndexRouteImport } from './routes/_authenticated/mensajeria/inbox/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authPlanesRoute = authPlanesRouteImport.update({
+  id: '/(auth)/planes',
+  path: '/planes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authSignInRoute = authSignInRouteImport.update({
@@ -88,6 +96,11 @@ const AuthenticatedSettingsRouteRoute =
     path: '/settings',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const authInvitarTokenRoute = authInvitarTokenRouteImport.update({
+  id: '/(auth)/invitar/$token',
+  path: '/invitar/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCartaIndexRoute = AuthenticatedCartaIndexRouteImport.update({
   id: '/carta/',
   path: '/carta/',
@@ -176,6 +189,12 @@ const AuthenticatedConfiguracionPagosIndexRoute =
     path: '/configuracion/pagos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracionPlantillasIndexRoute =
+  AuthenticatedConfiguracionPlantillasIndexRouteImport.update({
+    id: '/configuracion/plantillas/',
+    path: '/configuracion/plantillas/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracionWhatsappIndexRoute =
   AuthenticatedConfiguracionWhatsappIndexRouteImport.update({
     id: '/configuracion/whatsapp/',
@@ -198,6 +217,7 @@ const AuthenticatedMensajeriaInboxIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/planes': typeof authPlanesRoute
   '/sign-in': typeof authSignInRoute
   '/sign-up': typeof authSignUpRoute
   '/401': typeof errors401Route
@@ -205,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/invitar/$token': typeof authInvitarTokenRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -220,11 +241,13 @@ export interface FileRoutesByFullPath {
   '/configuracion/horarios/': typeof AuthenticatedConfiguracionHorariosIndexRoute
   '/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
+  '/configuracion/plantillas/': typeof AuthenticatedConfiguracionPlantillasIndexRoute
   '/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
   '/mensajeria/conectar/': typeof AuthenticatedMensajeriaConectarIndexRoute
   '/mensajeria/inbox/': typeof AuthenticatedMensajeriaInboxIndexRoute
 }
 export interface FileRoutesByTo {
+  '/planes': typeof authPlanesRoute
   '/sign-in': typeof authSignInRoute
   '/sign-up': typeof authSignUpRoute
   '/401': typeof errors401Route
@@ -233,6 +256,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
+  '/invitar/$token': typeof authInvitarTokenRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -248,6 +272,7 @@ export interface FileRoutesByTo {
   '/configuracion/horarios': typeof AuthenticatedConfiguracionHorariosIndexRoute
   '/configuracion/modulos': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos': typeof AuthenticatedConfiguracionPagosIndexRoute
+  '/configuracion/plantillas': typeof AuthenticatedConfiguracionPlantillasIndexRoute
   '/configuracion/whatsapp': typeof AuthenticatedConfiguracionWhatsappIndexRoute
   '/mensajeria/conectar': typeof AuthenticatedMensajeriaConectarIndexRoute
   '/mensajeria/inbox': typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -256,6 +281,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/(auth)/planes': typeof authPlanesRoute
   '/(auth)/sign-in': typeof authSignInRoute
   '/(auth)/sign-up': typeof authSignUpRoute
   '/(errors)/401': typeof errors401Route
@@ -264,6 +290,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/(auth)/invitar/$token': typeof authInvitarTokenRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/profile': typeof AuthenticatedSettingsProfileRoute
@@ -279,6 +306,7 @@ export interface FileRoutesById {
   '/_authenticated/configuracion/horarios/': typeof AuthenticatedConfiguracionHorariosIndexRoute
   '/_authenticated/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/_authenticated/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
+  '/_authenticated/configuracion/plantillas/': typeof AuthenticatedConfiguracionPlantillasIndexRoute
   '/_authenticated/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
   '/_authenticated/mensajeria/conectar/': typeof AuthenticatedMensajeriaConectarIndexRoute
   '/_authenticated/mensajeria/inbox/': typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -288,6 +316,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/settings'
+    | '/planes'
     | '/sign-in'
     | '/sign-up'
     | '/401'
@@ -295,6 +324,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/invitar/$token'
     | '/errors/$error'
     | '/settings/appearance'
     | '/settings/profile'
@@ -310,11 +340,13 @@ export interface FileRouteTypes {
     | '/configuracion/horarios/'
     | '/configuracion/modulos/'
     | '/configuracion/pagos/'
+    | '/configuracion/plantillas/'
     | '/configuracion/whatsapp/'
     | '/mensajeria/conectar/'
     | '/mensajeria/inbox/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/planes'
     | '/sign-in'
     | '/sign-up'
     | '/401'
@@ -323,6 +355,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/'
+    | '/invitar/$token'
     | '/errors/$error'
     | '/settings/appearance'
     | '/settings/profile'
@@ -338,6 +371,7 @@ export interface FileRouteTypes {
     | '/configuracion/horarios'
     | '/configuracion/modulos'
     | '/configuracion/pagos'
+    | '/configuracion/plantillas'
     | '/configuracion/whatsapp'
     | '/mensajeria/conectar'
     | '/mensajeria/inbox'
@@ -345,6 +379,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/_authenticated/settings'
+    | '/(auth)/planes'
     | '/(auth)/sign-in'
     | '/(auth)/sign-up'
     | '/(errors)/401'
@@ -353,6 +388,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
+    | '/(auth)/invitar/$token'
     | '/_authenticated/errors/$error'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/profile'
@@ -368,6 +404,7 @@ export interface FileRouteTypes {
     | '/_authenticated/configuracion/horarios/'
     | '/_authenticated/configuracion/modulos/'
     | '/_authenticated/configuracion/pagos/'
+    | '/_authenticated/configuracion/plantillas/'
     | '/_authenticated/configuracion/whatsapp/'
     | '/_authenticated/mensajeria/conectar/'
     | '/_authenticated/mensajeria/inbox/'
@@ -375,6 +412,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  authPlanesRoute: typeof authPlanesRoute
   authSignInRoute: typeof authSignInRoute
   authSignUpRoute: typeof authSignUpRoute
   errors401Route: typeof errors401Route
@@ -382,6 +420,7 @@ export interface RootRouteChildren {
   errors404Route: typeof errors404Route
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
+  authInvitarTokenRoute: typeof authInvitarTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -391,6 +430,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/planes': {
+      id: '/(auth)/planes'
+      path: '/planes'
+      fullPath: '/planes'
+      preLoaderRoute: typeof authPlanesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/sign-in': {
@@ -455,6 +501,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/(auth)/invitar/$token': {
+      id: '/(auth)/invitar/$token'
+      path: '/invitar/$token'
+      fullPath: '/invitar/$token'
+      preLoaderRoute: typeof authInvitarTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/carta/': {
       id: '/_authenticated/carta/'
@@ -561,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracionPagosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracion/plantillas/': {
+      id: '/_authenticated/configuracion/plantillas/'
+      path: '/configuracion/plantillas'
+      fullPath: '/configuracion/plantillas/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionPlantillasIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracion/whatsapp/': {
       id: '/_authenticated/configuracion/whatsapp/'
       path: '/configuracion/whatsapp'
@@ -618,6 +678,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracionHorariosIndexRoute: typeof AuthenticatedConfiguracionHorariosIndexRoute
   AuthenticatedConfiguracionModulosIndexRoute: typeof AuthenticatedConfiguracionModulosIndexRoute
   AuthenticatedConfiguracionPagosIndexRoute: typeof AuthenticatedConfiguracionPagosIndexRoute
+  AuthenticatedConfiguracionPlantillasIndexRoute: typeof AuthenticatedConfiguracionPlantillasIndexRoute
   AuthenticatedConfiguracionWhatsappIndexRoute: typeof AuthenticatedConfiguracionWhatsappIndexRoute
   AuthenticatedMensajeriaConectarIndexRoute: typeof AuthenticatedMensajeriaConectarIndexRoute
   AuthenticatedMensajeriaInboxIndexRoute: typeof AuthenticatedMensajeriaInboxIndexRoute
@@ -644,6 +705,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedConfiguracionModulosIndexRoute,
   AuthenticatedConfiguracionPagosIndexRoute:
     AuthenticatedConfiguracionPagosIndexRoute,
+  AuthenticatedConfiguracionPlantillasIndexRoute:
+    AuthenticatedConfiguracionPlantillasIndexRoute,
   AuthenticatedConfiguracionWhatsappIndexRoute:
     AuthenticatedConfiguracionWhatsappIndexRoute,
   AuthenticatedMensajeriaConectarIndexRoute:
@@ -657,6 +720,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  authPlanesRoute: authPlanesRoute,
   authSignInRoute: authSignInRoute,
   authSignUpRoute: authSignUpRoute,
   errors401Route: errors401Route,
@@ -664,6 +728,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors404Route: errors404Route,
   errors500Route: errors500Route,
   errors503Route: errors503Route,
+  authInvitarTokenRoute: authInvitarTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

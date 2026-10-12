@@ -5,9 +5,9 @@ AUTH_DB_PATH permite apuntar el engine a otro archivo (lo usan los tests).
 import os
 from pathlib import Path
 
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
-from . import models  # noqa: F401 — registra las tablas en SQLModel.metadata
+from . import crypto, models  # noqa: F401 — registra las tablas en SQLModel.metadata
 
 DB_PATH = Path(os.environ.get("AUTH_DB_PATH")
                or Path(__file__).resolve().parent.parent / "app.db")
@@ -26,6 +26,11 @@ _COLUMNS = [
     ("menuitem", "stock", "INTEGER"),
     # horarios-pausa-notif-perfil: pausa del bot en la fila del Asistente
     ("botconfig", "pausado", "BOOLEAN NOT NULL DEFAULT 0"),
+    # endurecer-local (E): plan del SaaS. El default del ALTER es "trial"
+    # (el del contrato); los 3 locales demo del .env preexistente quedan en
+    # "basico" con el fixup idempotente de seed.run().
+    ("tenant", "plan", "VARCHAR NOT NULL DEFAULT 'trial'"),
+    ("tenant", "trial_hasta", "DATETIME"),
 ]
 
 
@@ -38,9 +43,28 @@ def _add_missing_columns() -> None:
                 conn.commit()
 
 
+def recifrar_plaintext() -> None:
+    """Migración perezosa del cifrado (endurecer-local B), AL ARRANQUE:
+    re-cifra las filas plaintext que existan de payment_account y
+    whatsapp_channel — las que NO arrancan con el prefijo "gAAA" de Fernet.
+    Idempotente: lo que ya está cifrado no se toca. Nada se loggea (el
+    valor es un secreto)."""
+    with Session(engine) as session:
+        for row in session.exec(select(models.PaymentAccount)).all():
+            if not row.secret_key.startswith(crypto.FERNET_PREFIX):
+                row.secret_key = crypto.cifrar(row.secret_key)
+                session.add(row)
+        for row in session.exec(select(models.WhatsAppChannel)).all():
+            if not row.token.startswith(crypto.FERNET_PREFIX):
+                row.token = crypto.cifrar(row.token)
+                session.add(row)
+        session.commit()
+
+
 def init_db() -> None:
     SQLModel.metadata.create_all(engine)
     _add_missing_columns()
+    recifrar_plaintext()  # tras las tablas/columnas: re-cifra lo legado
 
 
 def get_session():

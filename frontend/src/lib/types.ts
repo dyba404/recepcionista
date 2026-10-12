@@ -34,6 +34,13 @@ export interface Tenant {
   yape_qr: string
   culqi_comision: number
   saludo?: string
+  /**
+   * Contrato endurecer-local (planes del SaaS): plan vigente del local.
+   * Opcional porque un backend viejo en vivo no lo trae.
+   */
+  plan?: 'trial' | 'basico' | 'pro' | (string & {})
+  /** Fin de la prueba (ISO) — llega con plan trial (opcional por lo mismo). */
+  trial_hasta?: string | null
 }
 
 export interface MenuItem {
@@ -404,4 +411,82 @@ export interface NotificationItem {
   /** Ruta al hacer click (con búsqueda si aplica). */
   ruta: string
   createdAt: string // ISO
+}
+
+/* ============================================================
+ * Contrato "endurecer-local": reportes CSV, invitaciones por
+ * enlace, plantillas WhatsApp y planes del SaaS
+ * (openspec/changes/endurecer-local/proposal.md)
+ * ============================================================ */
+
+/**
+ * GET /api/invitaciones?tenant= (manage_team) → invitación pendiente de
+ * aceptar. `url` es el path relativo ("/invitar/{token}") que la UI
+ * compone con el origin para compartirlo.
+ */
+export interface Invitation {
+  id: string | number
+  email: string
+  rol: RolEquipo
+  expires_at: string
+  url: string
+}
+
+/**
+ * POST /api/staff/invite {tenant, email, rol} (manage_team; admin solo lo
+ * invita el dueño; 409 si el email ya está en el team o tiene invitación
+ * pendiente válida) → {token, url, expires_at}. El envío por email queda
+ * TODO con Resend: la UI muestra el enlace para copiar.
+ */
+export interface InviteLinkResult {
+  token: string
+  url: string
+  expires_at: string
+}
+
+/**
+ * GET /api/invitaciones/{token} (público, sin secrets) → estado de la
+ * invitación. valida=false con motivo cuando expiró, fue revocada, ya se
+ * aceptó o el token no existe (el backend puede responder 404 — la UI lo
+ * normaliza a valida:false).
+ */
+export interface InvitacionPublica {
+  valida: boolean
+  local?: string
+  email?: string
+  rol?: RolEquipo
+  motivo?: string
+}
+
+/**
+ * Plantilla de WhatsApp (contrato endurecer-local, sección D): espejo local
+ * de las plantillas de Meta — GET /api/whatsapp/plantillas?tenant= hace el
+ * merge de las locales con las de Meta (best effort). `estado` puede venir
+ * tal cual lo devuelve Meta en test (p.ej. "PENDING_APPROVAL") — la UI lo
+ * muestra verbatim cuando no es uno de los canónicos.
+ */
+export interface WATemplate {
+  id: string | number
+  tenant_id?: string
+  /** nombre de Meta: minúsculas, dígitos y guion bajo. */
+  nombre: string
+  lenguaje: 'es' | 'en' | (string & {})
+  categoria: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION' | (string & {})
+  estado:
+    | 'local'
+    | 'en_revision'
+    | 'aprobada'
+    | 'rechazada'
+    | (string & {})
+  cuerpo: string
+  meta_id?: string | null
+  created_at?: string
+}
+
+/** GET /api/planes (público) → un plan del SaaS (trial/basico/pro). */
+export interface PlanInfo {
+  id: 'trial' | 'basico' | 'pro' | (string & {})
+  nombre: string
+  precio: number
+  detalle: string
 }

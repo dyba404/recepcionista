@@ -6,5 +6,7 @@ httpx==0.28.1
 python-dotenv==1.2.4
 # multipart: subida del QR de Yape (POST /api/tenants/{id}/qr) — única dep nueva (saas-cola-2)
 python-multipart==0.0.32
+# cryptography: Fernet para cifrar secrets en BD (endurecer-local B) — única dep nueva del change
+cryptography==50.0.2
 pytest==8.4.2
 ruff==0.14.4

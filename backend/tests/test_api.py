@@ -292,12 +292,23 @@ def test_ws_token_invalido_cierra_4401():
 
 # ── infraestructura ──
 
-def test_vistas_legacy_siguen_servidas():
-    for ruta, marca in [("/", "Recepcionista"), ("/chat", "Chat"),
-                        ("/panel", "Panel"), ("/cocina", "Cocina"), ("/menu", "Carta")]:
-        r = client.get(ruta)
-        assert r.status_code == 200
-        assert marca in r.text
+def test_vistas_legacy_reemplazadas_por_spa():
+    """saas-cola-2: las vistas HTML legacy (/, /chat, /panel, /cocina, /menu)
+    MUERREN del backend — la paridad React ya está hecha. Si existe el build
+    (../frontend/dist), esas rutas sirven el index.html del SPA (con fallback
+    de deep-links); sin build devuelven 404 y en dev se usa vite :5173.
+    /static/img/platos/f1.jpg sigue igual (test_foto_estatica_existe)."""
+    from app.main import DIST
+    if not DIST.is_dir():
+        pytest.skip("sin frontend/dist construido (dev usa vite :5173)")
+    r = client.get("/")
+    assert r.status_code == 200
+    assert 'id="root"' in r.text  # el SPA React, no el HTML legacy
+    # deep-link del router cae al index.html (client-side routing)
+    assert client.get("/configuracion/pagos").status_code == 200
+    # /api y /static no los traga el fallback SPA
+    assert client.get("/api/tenants/nada/xyz").status_code == 404
+    assert client.get("/static/nada.html").status_code == 404
 
 
 def test_foto_estatica_existe():

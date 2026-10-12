@@ -1,8 +1,9 @@
-"""Aísla la BD de usuarios de los tests: archivo temporal por corrida.
+"""Aísla la BD y los uploads de los tests: archivos temporales por corrida.
 
-Debe correr ANTES de importar app.main: el engine se crea al importar el módulo
-leyendo AUTH_DB_PATH, así los tests no tocan backend/app.db ni compiten con el
-server vivo. Helpers compartidos (client, auth) para los tests de modulos-mvp:
+Debe correr ANTES de importar app.main: el engine (AUTH_DB_PATH) y el dir de
+QRs de Yape (UPLOADS_DIR) se crean al importar los módulos, así los tests no
+tocan backend/app.db, backend/uploads/ ni compiten con el server vivo.
+Helpers compartidos (client, auth) para los tests de modulos-mvp:
 app/__init__.py carga backend/.env en este punto (python-dotenv, override=False).
 """
 import os
@@ -14,6 +15,8 @@ from fastapi.testclient import TestClient
 
 os.environ["AUTH_DB_PATH"] = os.path.join(
     tempfile.mkdtemp(prefix="faro-test-auth-"), "app.db")
+os.environ.setdefault("UPLOADS_DIR", os.path.join(
+    tempfile.mkdtemp(prefix="faro-test-uploads-")))  # saas-cola-2: QR de tests
 
 from app.main import app  # noqa: E402 — después de AUTH_DB_PATH, a propósito
 

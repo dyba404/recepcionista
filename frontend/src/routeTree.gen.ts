@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
+import { Route as authSignUpRouteImport } from './routes/(auth)/sign-up'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -27,6 +28,7 @@ import { Route as AuthenticatedPanelIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsProfileRouteImport } from './routes/_authenticated/settings/profile'
+import { Route as AuthenticatedConfiguracionEquipoIndexRouteImport } from './routes/_authenticated/configuracion/equipo/index'
 import { Route as AuthenticatedConfiguracionModulosIndexRouteImport } from './routes/_authenticated/configuracion/modulos/index'
 import { Route as AuthenticatedConfiguracionPagosIndexRouteImport } from './routes/_authenticated/configuracion/pagos/index'
 import { Route as AuthenticatedConfiguracionWhatsappIndexRouteImport } from './routes/_authenticated/configuracion/whatsapp/index'
@@ -40,6 +42,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const authSignInRoute = authSignInRouteImport.update({
   id: '/(auth)/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authSignUpRoute = authSignUpRouteImport.update({
+  id: '/(auth)/sign-up',
+  path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const errors401Route = errors401RouteImport.update({
@@ -130,6 +137,12 @@ const AuthenticatedSettingsProfileRoute =
     path: '/profile',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedConfiguracionEquipoIndexRoute =
+  AuthenticatedConfiguracionEquipoIndexRouteImport.update({
+    id: '/configuracion/equipo/',
+    path: '/configuracion/equipo/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedConfiguracionModulosIndexRoute =
   AuthenticatedConfiguracionModulosIndexRouteImport.update({
     id: '/configuracion/modulos/',
@@ -165,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/sign-in': typeof authSignInRoute
+  '/sign-up': typeof authSignUpRoute
   '/401': typeof errors401Route
   '/403': typeof errors403Route
   '/404': typeof errors404Route
@@ -179,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/locales/': typeof AuthenticatedLocalesIndexRoute
   '/panel/': typeof AuthenticatedPanelIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/configuracion/equipo/': typeof AuthenticatedConfiguracionEquipoIndexRoute
   '/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -187,6 +202,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof authSignInRoute
+  '/sign-up': typeof authSignUpRoute
   '/401': typeof errors401Route
   '/403': typeof errors403Route
   '/404': typeof errors404Route
@@ -202,6 +218,7 @@ export interface FileRoutesByTo {
   '/locales': typeof AuthenticatedLocalesIndexRoute
   '/panel': typeof AuthenticatedPanelIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/configuracion/equipo': typeof AuthenticatedConfiguracionEquipoIndexRoute
   '/configuracion/modulos': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/configuracion/pagos': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/configuracion/whatsapp': typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -213,6 +230,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/(auth)/sign-in': typeof authSignInRoute
+  '/(auth)/sign-up': typeof authSignUpRoute
   '/(errors)/401': typeof errors401Route
   '/(errors)/403': typeof errors403Route
   '/(errors)/404': typeof errors404Route
@@ -228,6 +246,7 @@ export interface FileRoutesById {
   '/_authenticated/locales/': typeof AuthenticatedLocalesIndexRoute
   '/_authenticated/panel/': typeof AuthenticatedPanelIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/configuracion/equipo/': typeof AuthenticatedConfiguracionEquipoIndexRoute
   '/_authenticated/configuracion/modulos/': typeof AuthenticatedConfiguracionModulosIndexRoute
   '/_authenticated/configuracion/pagos/': typeof AuthenticatedConfiguracionPagosIndexRoute
   '/_authenticated/configuracion/whatsapp/': typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -240,6 +259,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/sign-in'
+    | '/sign-up'
     | '/401'
     | '/403'
     | '/404'
@@ -254,6 +274,7 @@ export interface FileRouteTypes {
     | '/locales/'
     | '/panel/'
     | '/settings/'
+    | '/configuracion/equipo/'
     | '/configuracion/modulos/'
     | '/configuracion/pagos/'
     | '/configuracion/whatsapp/'
@@ -262,6 +283,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
+    | '/sign-up'
     | '/401'
     | '/403'
     | '/404'
@@ -277,6 +299,7 @@ export interface FileRouteTypes {
     | '/locales'
     | '/panel'
     | '/settings'
+    | '/configuracion/equipo'
     | '/configuracion/modulos'
     | '/configuracion/pagos'
     | '/configuracion/whatsapp'
@@ -287,6 +310,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/_authenticated/settings'
     | '/(auth)/sign-in'
+    | '/(auth)/sign-up'
     | '/(errors)/401'
     | '/(errors)/403'
     | '/(errors)/404'
@@ -302,6 +326,7 @@ export interface FileRouteTypes {
     | '/_authenticated/locales/'
     | '/_authenticated/panel/'
     | '/_authenticated/settings/'
+    | '/_authenticated/configuracion/equipo/'
     | '/_authenticated/configuracion/modulos/'
     | '/_authenticated/configuracion/pagos/'
     | '/_authenticated/configuracion/whatsapp/'
@@ -312,6 +337,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   authSignInRoute: typeof authSignInRoute
+  authSignUpRoute: typeof authSignUpRoute
   errors401Route: typeof errors401Route
   errors403Route: typeof errors403Route
   errors404Route: typeof errors404Route
@@ -333,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof authSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/sign-up': {
+      id: '/(auth)/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof authSignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(errors)/401': {
@@ -447,6 +480,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsProfileRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/configuracion/equipo/': {
+      id: '/_authenticated/configuracion/equipo/'
+      path: '/configuracion/equipo'
+      fullPath: '/configuracion/equipo/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionEquipoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracion/modulos/': {
       id: '/_authenticated/configuracion/modulos/'
       path: '/configuracion/modulos'
@@ -512,6 +552,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCocinaIndexRoute: typeof AuthenticatedCocinaIndexRoute
   AuthenticatedLocalesIndexRoute: typeof AuthenticatedLocalesIndexRoute
   AuthenticatedPanelIndexRoute: typeof AuthenticatedPanelIndexRoute
+  AuthenticatedConfiguracionEquipoIndexRoute: typeof AuthenticatedConfiguracionEquipoIndexRoute
   AuthenticatedConfiguracionModulosIndexRoute: typeof AuthenticatedConfiguracionModulosIndexRoute
   AuthenticatedConfiguracionPagosIndexRoute: typeof AuthenticatedConfiguracionPagosIndexRoute
   AuthenticatedConfiguracionWhatsappIndexRoute: typeof AuthenticatedConfiguracionWhatsappIndexRoute
@@ -528,6 +569,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCocinaIndexRoute: AuthenticatedCocinaIndexRoute,
   AuthenticatedLocalesIndexRoute: AuthenticatedLocalesIndexRoute,
   AuthenticatedPanelIndexRoute: AuthenticatedPanelIndexRoute,
+  AuthenticatedConfiguracionEquipoIndexRoute:
+    AuthenticatedConfiguracionEquipoIndexRoute,
   AuthenticatedConfiguracionModulosIndexRoute:
     AuthenticatedConfiguracionModulosIndexRoute,
   AuthenticatedConfiguracionPagosIndexRoute:
@@ -546,6 +589,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   authSignInRoute: authSignInRoute,
+  authSignUpRoute: authSignUpRoute,
   errors401Route: errors401Route,
   errors403Route: errors403Route,
   errors404Route: errors404Route,

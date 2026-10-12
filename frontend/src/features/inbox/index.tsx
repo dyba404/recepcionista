@@ -23,6 +23,7 @@ import {
 } from '@/hooks/use-conversations'
 import { useOrdersWs } from '@/hooks/use-orders-ws'
 import { useCurrentTenant } from '@/hooks/use-modules'
+import { useStaff } from '@/hooks/use-staff'
 import { useWhatsAppStatus } from '@/hooks/use-whatsapp'
 import { useAuthStore } from '@/stores/auth-store'
 import { ConversationList } from './components/conversation-list'
@@ -59,11 +60,23 @@ export function Inbox() {
   )
 
   /**
-   * Equipo asignable: el usuario de la sesión + el staff que ya aparece
-   * asignado en conversaciones (el contrato no expone aún un endpoint de
-   * usuarios, así que no inventamos uno).
+   * Equipo asignable (contrato saas-cola-2): el owner lista el equipo real
+   * con GET /api/staff. Si falla (404/403) o viene vacío, mantenemos el
+   * comportamiento previo: usuario de la sesión + staff que ya aparece
+   * asignado en conversaciones.
    */
+  const isOwner = me?.rol === 'owner'
+  const staffQuery = useStaff(tenant, isOwner)
+
   const staffOptions = useMemo<StaffOption[]>(() => {
+    const equipo = staffQuery.data
+    if (equipo && equipo.length > 0) {
+      return equipo.map((s) => ({
+        id: String(s.id),
+        nombre: s.nombre || s.email,
+        email: s.email,
+      }))
+    }
     const map = new Map<string, string>()
     if (me) map.set(String(me.id), me.nombre || me.email)
     for (const c of conversations ?? []) {
@@ -72,7 +85,7 @@ export function Inbox() {
       }
     }
     return Array.from(map, ([id, nombre]) => ({ id, nombre }))
-  }, [me, conversations])
+  }, [staffQuery.data, me, conversations])
 
   return (
     <>

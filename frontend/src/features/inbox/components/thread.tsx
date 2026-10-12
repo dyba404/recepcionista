@@ -44,7 +44,7 @@ import {
 import { Composer } from './composer'
 import { MessageBubble } from './message-bubble'
 
-export type StaffOption = { id: string; nombre: string }
+export type StaffOption = { id: string; nombre: string; email?: string }
 
 /**
  * Panel derecho del inbox: hilo estilo WhatsApp con header de handoff
@@ -212,6 +212,11 @@ export function Thread({
                   >
                     <UserRound className='size-3.5' />
                     <span className='max-w-40 truncate'>{staff.nombre}</span>
+                    {staff.email && staff.email !== staff.nombre && (
+                      <span className='max-w-40 truncate text-xs text-muted-foreground'>
+                        {staff.email}
+                      </span>
+                    )}
                     {String(conversation.assigned_to ?? '') === staff.id && (
                       <Check className='ms-auto size-3.5' />
                     )}

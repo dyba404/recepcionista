@@ -1,10 +1,12 @@
-"""Modelos SQLModel persistentes (ADR 0002 + changes modulos-mvp y saas-cola-1).
+"""Modelos SQLModel persistentes (ADR 0002 + changes modulos-mvp, saas-cola-1
+y saas-cola-2).
 
 user (sesión), mensajería: conversation, message, canned_response,
-module_config, whatsapp_channel; y pedidos/carta: order, menu_item
-(change saas-cola-1). store.ORDERS y data.MENUS siguen siendo el espejo en
-memoria que lee todo el código — persist.py los hidrata de estas tablas y
-les hace write-through en cada mutación.
+module_config, whatsapp_channel; pedidos/carta: order, menu_item
+(saas-cola-1); y locales/pagos: tenant, payment (saas-cola-2).
+store.ORDERS, data.MENUS y data.TENANTS siguen siendo el espejo en memoria
+que lee todo el código — persist.py los hidrata de estas tablas y les hace
+write-through en cada mutación.
 """
 # PEP 649 (Python 3.14): sin este future import el compilador no pone
 # "__annotations__" en el dict de clase y sqlmodel 0.0.24 pierde los campos.
@@ -123,7 +125,7 @@ class Order(SQLModel, table=True):
 # MenuItem espeja cada dict de data.MENUS (keyed "f1"). La columna se llama
 # desc_ ("desc" es palabra reservada de SQL); el dict en memoria usa "desc".
 class MenuItem(SQLModel, table=True):
-    id: str = Field(primary_key=True)  # "f1"
+    id: str = Field(primary_key=True)  # "f1" seed | "m1, m2…" agregados
     tenant_id: str = Field(index=True)
     nombre: str
     desc_: str
@@ -132,6 +134,40 @@ class MenuItem(SQLModel, table=True):
     disponible: bool = True
     tags: str
     foto: str
+
+
+# ── locales + ledger (change saas-cola-2: SaaS de verdad) ──
+
+# Tenant es la tabla real de locales: data.TENANTS queda como espejo en memoria
+# (igual que data.MENUS). id = slug ("faro", "cevicheria-x"); los ids seed
+# faro/brasa/juana NO cambian. culqi_comision NO vive aquí (el contrato define
+# estas columnas): el espejo la rellena con el default 0.0344 al reconstruirse
+# (los 3 seed usan exactamente ese valor), que es lo que logic.culqi_link lee.
+class Tenant(SQLModel, table=True):
+    id: str = Field(primary_key=True)  # slug: "faro" | "cevicheria-el-faro"
+    nombre: str
+    rubro: str = Field(default="comidas")
+    distrito: str
+    delivery: float = Field(default=5.0)
+    tiempo: str = Field(default="30-40 min")
+    yape_qr: str = Field(default="")
+    saludo: str
+
+
+# Payment = ledger: UNA fila por acción de pago (charge real Culqi, webhook
+# simulado, verificación Yape). gateway: "culqi_real" | "culqi_simulado" |
+# "yape". estado: "verificado" | "rechazado" | "pendiente_verificar".
+class Payment(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    order_id: str = Field(index=True)  # "#101"
+    gateway: str
+    referencia: str = Field(default="")  # charge_id Culqi | culqi_ref | ""
+    monto: float
+    comision: float = Field(default=0.0)
+    estado: str
+    detalle: str = Field(default="")
+    created_at: datetime = Field(default_factory=_now)
 
 
 # ── formas públicas (JSON-safe, sin secrets) ──

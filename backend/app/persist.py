@@ -1,23 +1,30 @@
-"""Persistencia real de pedidos/carta con espejo write-through (saas-cola-1).
+"""Persistencia real de locales/pedidos/carta con espejo write-through
+(saas-cola-1; locales en saas-cola-2).
 
-data.MENUS y store.ORDERS/COUNTER SIGUEN siendo las estructuras en memoria que
-todo el código ya usa (brain/logic/main las leen sin cambio de firma). Este
-módulo las convierte en un espejo de SQLite:
+data.TENANTS/MENUS y store.ORDERS/COUNTER SIGUEN siendo las estructuras en
+memoria que todo el código ya usa (brain/logic/data los leen sin cambio de
+firma). Este módulo las convierte en un espejo de SQLite:
 
-- hydrate() al arrancar (import de main.py, idempotente): siembra order/
-  menu_item si están vacías y CARGA el espejo desde la BD.
-- menu_write/order_write/order_delete en cada punto de mutación: upsert/
-  borrado en la BD + reflejo en el espejo. El caller ya mutó el dict en
-  memoria; escribir aquí es lo que lo vuelve durable.
+- hydrate() al arrancar (import de main.py, idempotente): siembra tenant/
+  order/menu_item si están vacías y CARGA el espejo desde la BD.
+- tenant_write/menu_write/order_write/order_delete en cada punto de
+  mutación: upsert/borrado en la BD + reflejo en el espejo. El caller ya
+  mutó el dict en memoria; escribir aquí es lo que lo vuelve durable.
 
 Cuidados:
 - Los dicts del espejo usan las claves que logic espera ("desc", no la
   columna desc_) y "foto" va persistida en menu_item.
+- El dict del espejo de tenant rellena culqi_comision (0.0344, el valor de
+  los seed) porque logic.culqi_link la lee: la columna no existe en la
+  tabla Tenant por contrato, así que el espejo aporta el default.
+- Todo tenant del espejo tiene su clave en data.MENUS (aunque sea []): un
+  local recién creado no rompe /api/menu ni logic.calc_total.
 - created_at de Order se fija en el primer write y NO se pisa en updates.
 - store.reset_demo() delega aquí (reset_db): demo fresca completa = tablas
-  Order+MenuItem a seed + espejo actualizado. Por eso el snapshot _SEED_MENU
-  se toma en el IMPORT de este módulo (antes de que hydrate cargue el
-  espejo desde la BD): es la única copia de la carta original de data.py.
+  Order+MenuItem a seed + espejo actualizado (TENANTS no se toca: los
+  locales no mueren con el demo). Por eso los snapshots _SEED_MENU y
+  _SEED_TENANTS se toman en el IMPORT de este módulo (antes de que hydrate
+  cargue el espejo desde la BD): son la única copia original de data.py.
 - CLIENT_STATE (direccion/esperando) NO se persiste: es estado de la
   conversación en curso, no del demo (sigue en store.py, solo memoria).
 """
@@ -28,11 +35,16 @@ from sqlmodel import Session, select
 
 from . import data, store
 from .db import engine, init_db
-from .models import MenuItem, Order
+from .models import MenuItem, Order, Tenant
 
-# carta original de data.py, congelada al importar (reset_db vuelve aquí;
-# data.MENUS deja de ser la fuente original en cuanto hydrate lo hidrata).
+# carta y locales originales de data.py, congelados al importar (reset_db
+# vuelve aquí; data.MENUS deja de ser la fuente original en cuanto hydrate
+# lo hidrata). data.TENANTS no se resetea, pero el seed de tabla vacía usa
+# esta copia.
 _SEED_MENU = deepcopy(data.MENUS)
+_SEED_TENANTS = deepcopy(data.TENANTS)
+
+CULQI_COMISION_DEFAULT = 0.0344
 
 
 def _dump(x) -> str:
@@ -44,6 +56,15 @@ def _foto(item_id: str) -> str:
 
 
 # ── siembra de tablas vacías ──
+
+def _seed_tenant_rows(session: Session) -> None:
+    for t in _SEED_TENANTS.values():
+        session.add(Tenant(id=t["id"], nombre=t["nombre"],
+                           rubro=t.get("rubro", "comidas"),
+                           distrito=t["distrito"],
+                           delivery=float(t["delivery"]), tiempo=t["tiempo"],
+                           yape_qr=t["yape_qr"], saludo=t["saludo"]))
+
 
 def _seed_menu_rows(session: Session) -> None:
     for tenant, items in _SEED_MENU.items():
@@ -66,6 +87,21 @@ def _seed_order_rows(session: Session) -> None:
 
 
 # ── carga BD → espejo ──
+
+def tenant_dict(row: Tenant) -> dict:
+    """El dict que brain/logic esperan: TODAS las claves de data.TENANTS.
+    culqi_comision se rellena con el default (la tabla no la guarda: los 3
+    seed usan justo 0.0344, así que el round-trip es idéntico)."""
+    return {"id": row.id, "nombre": row.nombre, "rubro": row.rubro,
+            "distrito": row.distrito, "delivery": row.delivery,
+            "tiempo": row.tiempo, "yape_qr": row.yape_qr,
+            "culqi_comision": CULQI_COMISION_DEFAULT, "saludo": row.saludo}
+
+
+def _load_tenant_mirror(rows: list[Tenant]) -> None:
+    data.TENANTS.clear()
+    data.TENANTS.update({r.id: tenant_dict(r) for r in rows})
+
 
 def _menu_dict(row: MenuItem) -> dict:
     """El dict que logic espera: columna desc_ → clave "desc"."""
@@ -92,6 +128,10 @@ def _load_menu_mirror(rows: list[MenuItem]) -> None:
         menus.setdefault(r.tenant_id, []).append(_menu_dict(r))
     data.MENUS.clear()
     data.MENUS.update(menus)
+    # todo local del espejo tiene carta (aunque vacía): un tenant recién
+    # creado no rompe /api/menu ni logic.calc_total (KeyError → 500)
+    for t in data.TENANTS:
+        data.MENUS.setdefault(t, [])
 
 
 def _load_order_mirror(rows: list[Order]) -> None:
@@ -116,21 +156,35 @@ def hydrate() -> None:
 
     Idempotente (patrón de seed.run): la primera corrida contra una BD vacía
     deja exactamente el demo que antes armaba store.reset_demo(); las
-    siguientes recuperan pedidos/carta persistidos. AUTH_DB_PATH apunta los
-    tests a su propia BD temporal.
+    siguientes recuperan locales/pedidos/carta persistidos. AUTH_DB_PATH
+    apunta los tests a su propia BD temporal.
     """
     init_db()
     with Session(engine) as session:
+        if session.exec(select(Tenant)).first() is None:
+            _seed_tenant_rows(session)
         if session.exec(select(MenuItem)).first() is None:
             _seed_menu_rows(session)
         if session.exec(select(Order)).first() is None:
             _seed_order_rows(session)
         session.commit()
+        tenant_rows = session.exec(select(Tenant).order_by(Tenant.id)).all()
         menu_rows = session.exec(
             select(MenuItem).order_by(MenuItem.id)).all()
         order_rows = session.exec(select(Order)).all()
+    _load_tenant_mirror(tenant_rows)
     _load_menu_mirror(menu_rows)
     _load_order_mirror(order_rows)
+
+
+def tenant_mirror(row: Tenant) -> None:
+    """Refleja un local YA commiteado en el espejo (sin tocar la BD): la fila
+    la crea/actualiza el caller dentro de SU transacción (register crea user+
+    tenant atómicos; POST /api/tenants reasigna al creador). También asegura
+    la clave de carta vacía: un local recién nacido no rompe /api/menu ni
+    logic.calc_total."""
+    data.TENANTS[row.id] = tenant_dict(row)
+    data.MENUS.setdefault(row.id, [])
 
 
 def menu_write(tenant: str, item: dict) -> None:
@@ -150,6 +204,19 @@ def menu_write(tenant: str, item: dict) -> None:
         lista.append(_menu_dict(row))
     else:
         cur.update(_menu_dict(row))
+
+
+def menu_delete(tenant: str, item_id: str) -> None:
+    """Borrado write-through de un plato: fila menu_item fuera + espejo.
+    Deja la clave del tenant en data.MENUS (aunque quede []): la carta vacía
+    sigue siendo una carta válida."""
+    with Session(engine) as session:
+        row = session.get(MenuItem, item_id)
+        if row is not None:
+            session.delete(row)
+            session.commit()
+    lista = data.MENUS.setdefault(tenant, [])
+    data.MENUS[tenant] = [x for x in lista if x["id"] != item_id]
 
 
 def order_write(o: dict) -> None:

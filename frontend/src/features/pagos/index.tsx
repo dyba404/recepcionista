@@ -38,6 +38,8 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { CuentaEstadoBadge } from './components/cuenta-estado-badge'
+import { LedgerSection } from './components/ledger-section'
+import { QrYapeSection } from './components/qr-yape-section'
 
 /** ¿El error es un 403 que no es "módulo desactivado"? → candado de staff. */
 function es403Staff(error: unknown): boolean {
@@ -335,6 +337,14 @@ export function PasarelaPagos() {
               </form>
             </CardContent>
           </Card>
+
+          {/* saas-cola-2: ledger de pagos + QR de Yape real */}
+          <LedgerSection tenant={tenant} />
+          <QrYapeSection
+            tenant={tenant}
+            isOwner={isOwner}
+            tieneQr={payConfigQuery.data?.yape_qr_imagen ?? false}
+          />
         </div>
       </Main>
 

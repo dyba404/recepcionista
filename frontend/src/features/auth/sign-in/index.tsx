@@ -1,4 +1,4 @@
-import { useSearch } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { BrandLogo } from '@/components/brand-logo'
 import {
   Card,
@@ -36,8 +36,17 @@ export function SignIn() {
             sandbox.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className='grid gap-4'>
           <UserAuthForm redirectTo={redirect} />
+          <p className='text-center text-sm text-muted-foreground'>
+            ¿Primera vez aquí?{' '}
+            <Link
+              to='/sign-up'
+              className='font-medium text-primary underline-offset-4 hover:underline'
+            >
+              Crea tu cuenta y tu local
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </AuthLayout>

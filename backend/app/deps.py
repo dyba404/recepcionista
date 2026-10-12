@@ -2,7 +2,7 @@
 from fastapi import Depends, Header, HTTPException
 from sqlmodel import Session
 
-from . import security
+from . import data, security
 from .db import get_session
 from .models import User
 
@@ -36,3 +36,13 @@ def require_owner(user: User = Depends(get_current_user)) -> User:
     if user.rol != "owner":
         raise HTTPException(403, "Solo el dueño puede configurar esto")
     return user
+
+
+def check_tenant_owner(tenant: str, user: User) -> None:
+    """404 si el local no existe; 403 si el usuario no es EL dueño de ese
+    local (patrón _check_tenant_owner de payments.py, compartido por los
+    routers de saas-cola-2: staff, carta, locales, QR). Usar con require_owner."""
+    if tenant not in data.TENANTS:
+        raise HTTPException(404, "tenant?")
+    if user.tenant_id != tenant:
+        raise HTTPException(403, "Solo el dueño de este tenant puede configurarlo")

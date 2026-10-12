@@ -1,0 +1,25 @@
+# Compose del SaaS: API+SPA y tunel Cloudflare hacia WhatsApp/Meta.
+services:
+  # App principal: FastAPI sirve la API y el SPA de frontend/dist.
+  app:
+    build: .
+    env_file: backend/.env
+    volumes:
+      # Persiste la base SQLite entre reinicios.
+      - ./backend/app.db:/app/backend/app.db
+      # Persiste los QR de Yape subidos.
+      - ./backend/uploads:/app/backend/uploads
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # Tunel Cloudflare: expone la app con HTTPS publico.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    volumes:
+      # Credenciales y config del tunel (solo lectura).
+      - ./.tools/cf:/etc/cloudflared:ro
+    command: tunnel --config /etc/cloudflared/config.yml run
+    restart: unless-stopped
+    depends_on:
+      - app

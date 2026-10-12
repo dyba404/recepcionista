@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, UtensilsCrossed } from 'lucide-react'
+import { Lock, RefreshCw, Trash2, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -27,8 +27,10 @@ import {
 } from '@/components/ui/table'
 import { api, apiErrorDetail, isModuleDisabledError } from '@/lib/api'
 import type { MenuItem, MenuResponse } from '@/lib/types'
-
-const TENANT = 'faro'
+import { useCurrentTenant } from '@/hooks/use-modules'
+import { useAuthStore } from '@/stores/auth-store'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { AgregarPlatoCard } from './components/agregar-plato-card'
 
 async function fetchMenu(tenant: string): Promise<MenuResponse> {
   const res = await api.get<MenuResponse>('/api/menu', {
@@ -45,10 +47,18 @@ const penFormatter = new Intl.NumberFormat('es-PE', {
 
 export function Carta() {
   const queryClient = useQueryClient()
+  const tenant = useCurrentTenant()
+  const me = useAuthStore((s) => s.auth.user)
+  const isOwner = me?.rol === 'owner'
 
   // Precio editable por fila (borrador) y error inline por fila
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [rowErrors, setRowErrors] = useState<Record<string, string | null>>({})
+  // Plato pendiente de eliminar (ConfirmDialog) + error inline del DELETE
+  const [pendienteEliminar, setPendienteEliminar] = useState<MenuItem | null>(
+    null
+  )
+  const [eliminarError, setEliminarError] = useState<string | null>(null)
 
   const {
     data,
@@ -57,14 +67,14 @@ export function Carta() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['menu', TENANT],
-    queryFn: () => fetchMenu(TENANT),
+    queryKey: ['menu', tenant],
+    queryFn: () => fetchMenu(tenant),
   })
 
   const savePrecio = useMutation({
     mutationFn: async (vars: { id: string; precio: string }) => {
       const res = await api.post('/api/menu/toggle', {
-        tenant: TENANT,
+        tenant,
         id: vars.id,
         precio: vars.precio, // el backend parsea float(precio)
       })
@@ -77,7 +87,7 @@ export function Carta() {
         delete next[vars.id]
         return next
       })
-      queryClient.invalidateQueries({ queryKey: ['menu', TENANT] })
+      queryClient.invalidateQueries({ queryKey: ['menu', tenant] })
       toast.success('Precio actualizado')
     },
     onError: (err, vars) => {
@@ -87,6 +97,33 @@ export function Carta() {
       }))
     },
   })
+
+  const removeItem = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete('/api/menu/items', {
+        params: { tenant, id },
+      })
+      return res.data
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['menu', tenant] })
+      toast.success('Plato eliminado de la carta')
+    },
+  })
+
+  function eliminar() {
+    if (!pendienteEliminar) return
+    setEliminarError(null)
+    removeItem.mutate(pendienteEliminar.id, {
+      onSuccess: () => {
+        setPendienteEliminar(null)
+        setEliminarError(null)
+      },
+      onError: (err) => {
+        setEliminarError(apiErrorDetail(err) ?? err.message)
+      },
+    })
+  }
 
   function handleSave(item: MenuItem) {
     const raw = (drafts[item.id] ?? String(item.precio)).trim()
@@ -114,8 +151,9 @@ export function Carta() {
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>Carta</h2>
           <p className='text-muted-foreground'>
-            Menú de {data?.tenant.nombre ?? '…'} (tenant: {TENANT}). Edita el
-            precio y guarda; los cambios se reflejan al instante.
+            Menú de {data?.tenant.nombre ?? '…'} (tenant: {tenant}). Edita el
+            precio, agrega platos o quítalos; los cambios se reflejan al
+            instante.
           </p>
         </div>
 
@@ -139,6 +177,10 @@ export function Carta() {
             </Alert>
           ))}
 
+        <div className='mx-auto w-full max-w-5xl'>
+          <AgregarPlatoCard tenant={tenant} isOwner={isOwner} />
+        </div>
+
         <div className='overflow-hidden rounded-lg border'>
           <Table>
             <TableHeader className='bg-muted/50'>
@@ -149,13 +191,14 @@ export function Carta() {
                 <TableHead className='w-28'>Precio</TableHead>
                 <TableHead className='w-32'>Disponibilidad</TableHead>
                 <TableHead className='w-56'>Editar precio</TableHead>
+                <TableHead className='w-24'>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isPending &&
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className='h-6 w-full' />
                       </TableCell>
@@ -238,6 +281,26 @@ export function Carta() {
                           )}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          aria-label={`Eliminar ${item.nombre} de la carta`}
+                          className='gap-1.5 text-destructive hover:text-destructive'
+                          disabled={!isOwner || removeItem.isPending}
+                          onClick={() => {
+                            setPendienteEliminar(item)
+                            setEliminarError(null)
+                          }}
+                        >
+                          {!isOwner ? (
+                            <Lock className='size-3.5' />
+                          ) : (
+                            <Trash2 className='size-3.5' />
+                          )}
+                          Eliminar
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   )
                 })}
@@ -245,10 +308,11 @@ export function Carta() {
               {!isPending && items.length === 0 && !isError && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className='h-24 text-center text-muted-foreground'
                   >
-                    Sin platos para el tenant {TENANT}.
+                    Sin platos para el tenant {tenant}. Agrega el primero con
+                    el formulario de arriba.
                   </TableCell>
                 </TableRow>
               )}
@@ -256,6 +320,33 @@ export function Carta() {
           </Table>
         </div>
       </Main>
+
+      <ConfirmDialog
+        open={pendienteEliminar !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendienteEliminar(null)
+            setEliminarError(null)
+          }
+        }}
+        title='Eliminar plato de la carta'
+        desc={
+          pendienteEliminar
+            ? `¿Eliminar "${pendienteEliminar.nombre}" (${penFormatter.format(pendienteEliminar.precio)})? El chat de cliente deja de ofrecerlo de inmediato.`
+            : ''
+        }
+        confirmText='Eliminar'
+        destructive
+        isLoading={removeItem.isPending}
+        handleConfirm={eliminar}
+        className='sm:max-w-sm'
+      >
+        {eliminarError && (
+          <p role='alert' className='text-sm font-medium text-destructive'>
+            {eliminarError}
+          </p>
+        )}
+      </ConfirmDialog>
     </>
   )
 }

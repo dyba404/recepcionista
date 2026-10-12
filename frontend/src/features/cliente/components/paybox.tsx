@@ -63,6 +63,7 @@ export function Paybox({
 }: PayboxProps) {
   const [pagado, setPagado] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [qrImgError, setQrImgError] = useState(false)
   const [error, setError] = useState<{
     mensaje: string
     reintentar: () => void
@@ -222,11 +223,22 @@ export function Paybox({
           </Badge>
         </div>
 
-        {/* QR de Yape con el monto exacto */}
+        {/* QR de Yape con el monto exacto: imagen real del local si la
+            subió (config.yape_qr_imagen), si no el QR generado de siempre.
+            Si la imagen falla al cargar, caemos al generado. */}
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
           {config ? (
             <div className='shrink-0 rounded-lg border bg-white p-2'>
-              <QRCodeSVG value={qrValue} size={124} />
+              {config.yape_qr_imagen && !qrImgError ? (
+                <img
+                  src={`/api/tenants/${encodeURIComponent(tenant)}/qr`}
+                  alt='QR de Yape del local'
+                  className='size-[124px] object-contain'
+                  onError={() => setQrImgError(true)}
+                />
+              ) : (
+                <QRCodeSVG value={qrValue} size={124} />
+              )}
             </div>
           ) : configQuery.isError ? (
             <Alert variant='destructive' className='sm:w-32'>
@@ -252,8 +264,9 @@ export function Paybox({
               <b className='tabular-nums'>{penFormatter.format(order.total)}</b>
             </p>
             <p className='mt-1 text-xs text-muted-foreground'>
-              QR demo escaneable: solo pasa a cocina el monto EXACTO verificado
-              por el servidor. La foto del voucher nunca basta.
+              {config?.yape_qr_imagen && !qrImgError
+                ? 'Escanea el QR de Yape del local: el pago se verifica por monto exacto y la foto del voucher nunca basta.'
+                : 'QR demo escaneable: solo pasa a cocina el monto EXACTO verificado por el servidor. La foto del voucher nunca basta.'}
             </p>
           </div>
         </div>

@@ -40,3 +40,6 @@ backend/app.db
 
 # --- Temp del router TanStack ---
 frontend/.tanstack/
+
+# --- QR de Yape subidos por los locales ---
+backend/uploads/

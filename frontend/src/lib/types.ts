@@ -113,6 +113,12 @@ export interface PayConfig {
   culqi_pk_enmascarada?: string | null
   culqi_estado?: 'conectada' | 'simulada' | (string & {})
   yape_qr: string
+  /**
+   * true = el local subió su QR real de Yape (GET /api/tenants/{id}/qr lo
+   * sirve); el paybox lo muestra en vez del QR generado. Opcional porque
+   * un backend viejo en vivo no lo trae.
+   */
+  yape_qr_imagen?: boolean
   tenant: string
 }
 
@@ -168,6 +174,43 @@ export interface CulqiChargeResult {
   /** Motivo del rechazo tal como lo devuelve Culqi (cuando !ok). */
   motivo: string
   order: Order
+}
+
+/* ============================================================
+ * Contrato "saas-cola-2": registro con negocio, staff y ledger
+ * (openspec/changes/saas-cola-2/proposal.md)
+ * ============================================================ */
+
+/** GET /api/staff?tenant= (owner) → integrantes del local. */
+export interface StaffMember {
+  id: number | string
+  email: string
+  nombre: string
+  rol: 'owner' | 'staff' | (string & {})
+}
+
+/** Estado de una fila del ledger de pagos (verificado por el servidor). */
+export type LedgerEstado =
+  | 'verificado'
+  | 'rechazado'
+  | 'pendiente_verificar'
+  | (string & {})
+
+/**
+ * GET /api/payments/ledger?tenant= (owner) → últimos 100 pagos. Una fila
+ * por cada acción de pago (cargo Culqi real, webhook simulado, Yape).
+ */
+export interface LedgerEntry {
+  id: string | number
+  tenant_id: string
+  order_id: string
+  gateway: 'culqi_real' | 'culqi_simulado' | 'yape' | (string & {})
+  referencia: string | null
+  monto: number
+  comision: number
+  estado: LedgerEstado
+  detalle: string | null
+  created_at: string
 }
 
 /* ============================================================

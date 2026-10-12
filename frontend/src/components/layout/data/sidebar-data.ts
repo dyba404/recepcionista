@@ -14,6 +14,7 @@ import {
   Settings,
   Store,
   UserCog,
+  Users,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -24,7 +25,8 @@ import { type SidebarData } from '../types'
  *   con badge de no leídos — inyectado en vivo desde AppSidebar).
  * - Gestión: Panel kanban de pedidos, Cocina (KDS) y Carta.
  * - Configuración: Ajustes (perfil/apariencia), Canal de WhatsApp,
- *   Pasarela de pagos (Culqi) y Módulos (toggles owner).
+ *   Pasarela de pagos (Culqi), Equipo (staff del local, saas-cola-2) y
+ *   Módulos (toggles owner).
  * - Ayuda: enlaces reales del template (repo e issues de shadcn-admin).
  *
  * El gating por módulos (ocultar Mensajería/Cocina/Carta) lo aplica
@@ -119,6 +121,11 @@ export const sidebarData: SidebarData = {
           title: 'Pasarela de pagos',
           url: '/configuracion/pagos',
           icon: CreditCard,
+        },
+        {
+          title: 'Equipo',
+          url: '/configuracion/equipo',
+          icon: Users,
         },
         {
           title: 'Módulos',

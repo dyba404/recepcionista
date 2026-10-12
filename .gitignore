@@ -1,0 +1,42 @@
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- Node ---
+node_modules/
+frontend/dist/
+
+# --- Entorno / secretos ---
+.env*
+
+# --- Capturas de pantalla de demo ---
+.shots/
+
+# --- Workspace opencode: contenido transitorio (se recrea solo) ---
+sandbox/
+backend/sandbox/
+
+# --- Temporales de ZCode ---
+.zcode/tmp/
+
+# --- Archivos de sesión (logs de agentes); se preservan los archivados ---
+*.session
+session-*.md
+!docs/archive/session-*.md
+
+# --- Infraestructura local ---
+# Credenciales del túnel Cloudflare (secreto del túnel): NUNCA al repo
+.tools/
+# Bases de datos locales (usuarios demo con hashes, pedidos sandbox)
+backend/app.db
+*.db
+
+# --- Skills compartidas por junction (fuente canónica: otro repo) ---
+.zcode/skills/
+.opencode/skills/
+
+# --- Temp del router TanStack ---
+frontend/.tanstack/

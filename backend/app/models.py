@@ -1,0 +1,135 @@
+"""Modelos SQLModel persistentes (ADR 0002 + changes modulos-mvp y saas-cola-1).
+
+user (sesión), mensajería: conversation, message, canned_response,
+module_config, whatsapp_channel; y pedidos/carta: order, menu_item
+(change saas-cola-1). store.ORDERS y data.MENUS siguen siendo el espejo en
+memoria que lee todo el código — persist.py los hidrata de estas tablas y
+les hace write-through en cada mutación.
+"""
+# PEP 649 (Python 3.14): sin este future import el compilador no pone
+# "__annotations__" en el dict de clase y sqlmodel 0.0.24 pierde los campos.
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from sqlmodel import Field, SQLModel
+
+# rol: "owner" (dueño del tenant) | "staff" (cocina, delivery)
+ROLES = ("owner", "staff")
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class User(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    email: str = Field(index=True, unique=True)
+    password_hash: str
+    nombre: str
+    tenant_id: str = Field(default="faro")
+    rol: str = "staff"
+    created_at: datetime = Field(default_factory=_now)
+
+
+# ── mensajería (modulos-mvp) ──
+
+# Conversation.estado: "bot" (responde el bot) | "humano" (handoff, bot pausado)
+#                    | "resuelta"
+# Conversation.canal: "whatsapp" (Meta Cloud API) | "demo" (simulador legacy)
+class Conversation(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    canal: str = Field(default="demo")
+    wa_id: str = Field(index=True)  # teléfono (whatsapp) o nombre (demo)
+    cliente: str  # nombre de perfil Meta o nombre del cliente demo
+    estado: str = Field(default="bot")
+    assigned_to: int | None = Field(default=None, foreign_key="user.id")
+    unread: int = Field(default=0)
+    last_message_at: datetime = Field(default_factory=_now)
+    created_at: datetime = Field(default_factory=_now)
+
+
+# Message.role: "cliente" (desde el canal) | "bot" | "humano" (operador;
+# las notas internas también usan "humano" con prefijo "[nota interna] ")
+class Message(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int = Field(index=True, foreign_key="conversation.id")
+    role: str
+    body: str
+    created_at: datetime = Field(default_factory=_now)
+
+
+class CannedResponse(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    shortcut: str
+    texto: str
+
+
+class ModuleConfig(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True)
+    module_key: str
+    enabled: bool = True
+
+
+# WhatsAppChannel.estado: "desconectado" | "conectado" | "pausado"
+class WhatsAppChannel(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: str = Field(index=True, unique=True)
+    phone_number_id: str
+    token: str
+    estado: str = Field(default="desconectado")
+    webhook_verified_at: datetime | None = None
+
+
+# ── pedidos + carta (change saas-cola-1: persistencia con espejo write-through) ──
+
+# Order espeja cada dict de store.ORDERS (keyed "#101"). items/timeline van
+# como JSON str (json.dumps ensure_ascii=False); los campos Culqi son null
+# hasta que el pedido entra al flujo de pago.
+class Order(SQLModel, table=True):
+    id: str = Field(primary_key=True)  # "#101"
+    tenant_id: str = Field(index=True)
+    cliente: str
+    items: str  # JSON: [{"id": "f1", "cant": 2}]
+    total: float
+    estado: str  # logic.ESTADOS: nuevo/confirmado/cocina/delivery/entregado
+    pago: str  # pendiente | pendiente_verificar | pagado_culqi | pagado_yape | ...
+    direccion: str
+    timeline: str  # JSON: ["creado", "pagado_culqi", "cocina", ...]
+    culqi_ref: str | None = None
+    culqi_charge: str | None = None
+    created_at: datetime = Field(default_factory=_now)
+
+
+# MenuItem espeja cada dict de data.MENUS (keyed "f1"). La columna se llama
+# desc_ ("desc" es palabra reservada de SQL); el dict en memoria usa "desc".
+class MenuItem(SQLModel, table=True):
+    id: str = Field(primary_key=True)  # "f1"
+    tenant_id: str = Field(index=True)
+    nombre: str
+    desc_: str
+    precio: float
+    cat: str
+    disponible: bool = True
+    tags: str
+    foto: str
+
+
+# ── formas públicas (JSON-safe, sin secrets) ──
+# Viven junto a los modelos para que whatsapp.py e inbox.py las compartan
+# sin importarse entre sí (evita el ciclo process_incoming ↔ inbox).
+
+def conversation_public(c: Conversation) -> dict:
+    return {"id": c.id, "tenant_id": c.tenant_id, "canal": c.canal,
+            "wa_id": c.wa_id, "cliente": c.cliente, "estado": c.estado,
+            "assigned_to": c.assigned_to, "unread": c.unread,
+            "last_message_at": c.last_message_at.isoformat(),
+            "created_at": c.created_at.isoformat()}
+
+
+def message_public(m: Message) -> dict:
+    return {"id": m.id, "conversation_id": m.conversation_id, "role": m.role,
+            "body": m.body, "created_at": m.created_at.isoformat()}

@@ -1,0 +1,19 @@
+[project]
+name = "recepcionista-backend"
+version = "0.1.0"
+description = "SaaS Recepcionista WhatsApp - backend FastAPI"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F = bugs reales, I = orden de imports. Los guards del LLM usan
+# except amplios a proposito: no seleccionar BLE/SIM/S.
+select = ["E", "F", "I"]
+ignore = ["E501"]  # legacy del prototipo: se ajusta al tocar
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,110 @@
+/*
+ * Tokens de marca "Recepcionista" (shadcn/Tailwind v4):
+ * - primary tomate-deep #C2431F con crema #FFF8EF (llama/brasa).
+ * - background claro cálido #FAF4E9 y su equivalente oscuro marrón.
+ * - radius lo deja igual al template (0.625rem).
+ */
+:root {
+  --radius: 0.625rem;
+  --background: #faf4e9;
+  --foreground: #2b2118;
+  --card: #fffdf7;
+  --card-foreground: #2b2118;
+  --popover: #fffdf7;
+  --popover-foreground: #2b2118;
+  --primary: #c2431f;
+  --primary-foreground: #fff8ef;
+  --secondary: #f1e7d6;
+  --secondary-foreground: #4a3524;
+  --muted: #f3ebdc;
+  --muted-foreground: #8a7663;
+  --accent: #f5e9d7;
+  --accent-foreground: #7a2e12;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #eaddc7;
+  --input: #e4d5bd;
+  --ring: #c2431f;
+  --chart-1: #c2431f;
+  --chart-2: #d97e27;
+  --chart-3: #3e7c5b;
+  --chart-4: #4e6e9e;
+  --chart-5: #8a5fbf;
+
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+.dark {
+  --background: #1a120b;
+  --foreground: #f5ebdd;
+  --card: #241a11;
+  --card-foreground: #f5ebdd;
+  --popover: #241a11;
+  --popover-foreground: #f5ebdd;
+  --primary: #e05a33;
+  --primary-foreground: #fff8ef;
+  --secondary: #33261a;
+  --secondary-foreground: #f5ebdd;
+  --muted: #2e2216;
+  --muted-foreground: #b3a28d;
+  --accent: #33261a;
+  --accent-foreground: #f5ebdd;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: rgb(250 244 233 / 14%);
+  --input: rgb(250 244 233 / 18%);
+  --ring: #e05a33;
+  --chart-1: #e05a33;
+  --chart-2: #e89b4b;
+  --chart-3: #55a377;
+  --chart-4: #6f8fc0;
+  --chart-5: #a982d9;
+}
+
+@theme inline {
+  --font-inter: 'Inter', 'sans-serif';
+  --font-manrope: 'Manrope', 'sans-serif';
+  /* Headings de dashboard/locales (utilidad `font-display`). */
+  --font-display: 'Fraunces', Georgia, 'serif';
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}

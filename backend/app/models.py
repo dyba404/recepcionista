@@ -16,8 +16,9 @@ from datetime import datetime, timezone
 
 from sqlmodel import Field, SQLModel
 
-# rol: "owner" (dueño del tenant) | "staff" (cocina, delivery)
-ROLES = ("owner", "staff")
+# rol: "owner" (dueño del tenant) | "admin" | "staff" (cocina, delivery).
+# La matriz de capacidades por rol vive en roles.py (change roles-equipo).
+ROLES = ("owner", "admin", "staff")
 
 
 def _now() -> datetime:

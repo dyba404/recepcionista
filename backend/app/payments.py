@@ -28,6 +28,7 @@ from .db import engine, get_session
 from .deps import check_tenant_owner, get_current_user, require_owner
 from .models import Payment, PaymentAccount, User
 from .modules import gates
+from .roles import require_perm
 from .schemas import CulqiChargeIn, CulqiLinkIn, CulqiWHIn, YapeIn
 from .tenants import qr_path
 
@@ -137,11 +138,11 @@ def payment_public(p: Payment) -> dict:
 
 
 @router.get("/ledger")
-def ledger(tenant: str, owner: User = Depends(require_owner),
+def ledger(tenant: str, user: User = Depends(require_perm("view_ledger")),
            session: Session = Depends(get_session)):
-    """Historial de pagos del local (owner): últimos 100, el más reciente
-    primero."""
-    check_tenant_owner(tenant, owner)
+    """Historial de pagos del local (owner+admin: capacidad view_ledger,
+    change roles-equipo): últimos 100, el más reciente primero."""
+    check_tenant_owner(tenant, user)
     rows = session.exec(select(Payment).where(Payment.tenant_id == tenant)
                         .order_by(Payment.id.desc()).limit(100)).all()
     return [payment_public(p) for p in rows]

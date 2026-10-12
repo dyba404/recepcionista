@@ -2,12 +2,19 @@
  * Tipos compartidos del contrato backend (docs/adr/0002-auth-websocket-persistencia.md)
  */
 
+/**
+ * Roles del equipo (contrato roles-equipo, patrón Chatwoot): owner (dueño,
+ * creador del negocio), admin (administrador) y staff (operativo).
+ * `(string & {})` mantiene compatibilidad con backends viejos en vivo.
+ */
+export type RolEquipo = 'owner' | 'admin' | 'staff' | (string & {})
+
 export interface AuthUser {
   id: number | string
   email: string
   nombre: string
   tenant_id: string | null
-  rol: 'owner' | 'staff' | (string & {})
+  rol: RolEquipo
 }
 
 export interface LoginResponse {
@@ -181,20 +188,17 @@ export interface CulqiChargeResult {
  * (openspec/changes/saas-cola-2/proposal.md)
  * ============================================================ */
 
-/** GET /api/staff?tenant= (owner) → integrantes del local. */
+/** GET /api/staff?tenant= (owner/admin) → integrantes del local. */
 export interface StaffMember {
   id: number | string
   email: string
   nombre: string
-  rol: 'owner' | 'staff' | (string & {})
+  rol: RolEquipo
 }
 
 /** Estado de una fila del ledger de pagos (verificado por el servidor). */
 export type LedgerEstado =
-  | 'verificado'
-  | 'rechazado'
-  | 'pendiente_verificar'
-  | (string & {})
+  'verificado' | 'rechazado' | 'pendiente_verificar' | (string & {})
 
 /**
  * GET /api/payments/ledger?tenant= (owner) → últimos 100 pagos. Una fila

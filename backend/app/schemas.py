@@ -8,6 +8,8 @@ precio de MenuToggleIn admite str a propósito: el handler valida el número y
 responde 400 (no 422) con el mensaje humano que el front ya conoce — "abc"
 llega como string y se valida igual que cuando el payload era un dict.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 # ── chat (ex main.py) ──
@@ -101,10 +103,21 @@ class NegocioIn(BaseModel):
     delivery: float = 5.0
 
 
-# ── equipo (saas-cola-2) ──
+# ── equipo (saas-cola-2; roles-equipo añade rol y PATCH) ──
 
 class StaffCreateIn(BaseModel):
+    """Invitación: rol "admin"|"staff" (default staff, 422 cualquier otro
+    valor — invitar JAMÁS crea owner). Solo el owner puede invitar admins;
+    el admin invita solo staff (esa regla vive en staff.py)."""
     tenant: str
     email: str
     password: str = Field(min_length=8)
     nombre: str
+    rol: Literal["admin", "staff"] = "staff"
+
+
+class StaffPatchIn(BaseModel):
+    """Cambio en línea de nombre/rol. rol "admin"|"staff" (422 otro valor):
+    el owner reasigna staff↔admin; los owners nunca se editan por aquí."""
+    nombre: str | None = None
+    rol: Literal["admin", "staff"] | None = None

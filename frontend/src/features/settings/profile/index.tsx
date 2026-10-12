@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Info, RefreshCw, Store, UserCog } from 'lucide-react'
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert'
+import { api } from '@/lib/api'
+import type { AuthUser } from '@/lib/types'
+import { useTenants } from '@/hooks/use-tenants'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,9 +15,6 @@ import {
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { api } from '@/lib/api'
-import type { AuthUser } from '@/lib/types'
-import { useTenants } from '@/hooks/use-tenants'
 import { ContentSection } from '../components/content-section'
 
 /**
@@ -27,11 +23,17 @@ import { ContentSection } from '../components/content-section'
  * La edición de perfil todavía no existe en la API de settings.
  */
 
-function Fila({ label, children }: { label: string; children: React.ReactNode }) {
+function Fila({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
   return (
     <div className='grid grid-cols-[8rem_1fr] items-start gap-2 text-sm sm:grid-cols-[10rem_1fr]'>
       <dt className='text-muted-foreground'>{label}</dt>
-      <dd className='min-w-0 break-words font-medium'>{children}</dd>
+      <dd className='min-w-0 font-medium break-words'>{children}</dd>
     </div>
   )
 }
@@ -55,9 +57,17 @@ export function SettingsProfile() {
 
   const rolBadge =
     me?.rol === 'owner' ? (
-      <Badge className='border-transparent bg-emerald-600 text-white'>Owner</Badge>
+      <Badge className='border-transparent bg-emerald-600 text-white'>
+        Dueño
+      </Badge>
+    ) : me?.rol === 'admin' ? (
+      <Badge className='border-transparent bg-blue-600 text-white'>
+        Administrador
+      </Badge>
     ) : (
-      <Badge className='border-transparent bg-amber-500 text-black'>Staff</Badge>
+      <Badge className='border-transparent bg-amber-500 text-black'>
+        Staff
+      </Badge>
     )
 
   return (

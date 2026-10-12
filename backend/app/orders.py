@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from . import data, logic, persist, store, ws
 from .deps import get_current_user
+from .roles import require_perm
 from .schemas import OrderIn, OrderPatchIn
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -35,7 +36,7 @@ def list_orders(tenant: str | None = None):
     return sorted(vals, key=lambda x: x["id"], reverse=True)
 
 
-@router.patch("/{oid}", dependencies=[Depends(get_current_user)])
+@router.patch("/{oid}", dependencies=[Depends(require_perm("manage_orders"))])
 def advance(oid: str, payload: OrderPatchIn):
     if oid not in store.ORDERS:
         raise HTTPException(404, "pedido?")

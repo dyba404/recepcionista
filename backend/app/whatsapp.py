@@ -26,7 +26,7 @@ from sqlmodel import Session, select
 
 from . import brain, data, ws
 from .db import engine
-from .deps import get_current_user, require_owner
+from .deps import get_current_user
 from .models import (
     Conversation,
     Message,
@@ -36,6 +36,7 @@ from .models import (
     message_public,
 )
 from .modules import gates
+from .roles import require_perm
 
 log = logging.getLogger(__name__)
 
@@ -293,7 +294,7 @@ def _handle_events(payload: dict) -> int:
     return n
 
 
-# ── configuración del canal (owner) ──
+# ── configuración del canal (capacidad manage_settings: owner+admin) ──
 
 class WhatsAppSetupIn(BaseModel):
     tenant: str
@@ -311,19 +312,19 @@ class ConectarIn(BaseModel):
     callback_url: str | None = None  # default: https://$CF_TUNNEL_HOSTNAME/webhook/whatsapp
 
 
-def _check_tenant_owner(tenant: str, owner: User) -> None:
+def _check_tenant_owner(tenant: str, user: User) -> None:
     if tenant not in data.TENANTS:
         raise HTTPException(404, "tenant?")
-    if owner.tenant_id != tenant:
+    if user.tenant_id != tenant:
         raise HTTPException(403, "Solo el dueño de este tenant puede configurarlo")
 
 
 @router.post("/setup")
 def whatsapp_setup(payload: WhatsAppSetupIn,
-                   owner: User = Depends(require_owner)):
+                   user: User = Depends(require_perm("manage_settings"))):
     """Guarda phone_number_id/token en WhatsAppChannel y marca estado conectado.
     Parciales: lo que no viene del wizard cae al env META_* o queda como estaba."""
-    _check_tenant_owner(payload.tenant, owner)
+    _check_tenant_owner(payload.tenant, user)
     with Session(engine) as session:
         ch = get_channel(payload.tenant, session)
         if ch is None:
@@ -349,11 +350,11 @@ def whatsapp_setup(payload: WhatsAppSetupIn,
 
 @router.post("/register-webhook")
 def register_webhook(payload: WebhookRegisterIn,
-                     owner: User = Depends(require_owner)):
+                     user: User = Depends(require_perm("manage_settings"))):
     """Registra la suscripción en Graph API (POST /{app_id}/subscriptions).
     Meta devuelve error benigno si la callback ya estaba registrada: se normaliza."""
     gates(payload.tenant, "whatsapp")  # gating real del módulo (setup/status exentos)
-    _check_tenant_owner(payload.tenant, owner)
+    _check_tenant_owner(payload.tenant, user)
     app_id = os.environ.get("META_APP_ID", "")
     app_secret = os.environ.get("META_APP_SECRET", "")
     if not (app_id and app_secret):
@@ -374,14 +375,14 @@ def register_webhook(payload: WebhookRegisterIn,
 
 @router.post("/conectar")
 def whatsapp_conectar(payload: ConectarIn,
-                      owner: User = Depends(require_owner)):
+                      user: User = Depends(require_perm("manage_settings"))):
     """Conexión de UN BOTÓN: la secuencia completa que costó una noche de debug
     (2026-10-11). La entrega de eventos de la Cloud API actual EXIGE la
     suscripción con object=whatsapp_business_account + campo "messages" (el
     object=whatsapp de la documentación NO recibe entregas) y además
     subscribed_apps en el WABA. Idempotente: cada paso es benigno re-hecho."""
     gates(payload.tenant, "whatsapp")
-    _check_tenant_owner(payload.tenant, owner)
+    _check_tenant_owner(payload.tenant, user)
     app_id = os.environ.get("META_APP_ID", "")
     app_secret = os.environ.get("META_APP_SECRET", "")
     waba = os.environ.get("META_WABA_ID", "")
@@ -401,7 +402,7 @@ def whatsapp_conectar(payload: ConectarIn,
 
     # 1) canal local (reusa el endpoint de setup con defaults del env)
     try:
-        canal = whatsapp_setup(WhatsAppSetupIn(tenant=payload.tenant), owner)
+        canal = whatsapp_setup(WhatsAppSetupIn(tenant=payload.tenant), user)
         pasos.append({"paso": "canal", "ok": True,
                       "detalle": f"phone_number_id {canal['phone_number_id']}"})
     except HTTPException as e:

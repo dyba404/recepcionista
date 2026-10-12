@@ -18,6 +18,7 @@ from . import data, persist
 from .db import get_session
 from .deps import check_tenant_owner, require_owner
 from .models import Tenant, User
+from .roles import require_perm
 from .schemas import TenantCreateIn, TenantPatchIn
 
 router = APIRouter(prefix="/api/tenants", tags=["tenants"])
@@ -87,10 +88,11 @@ def create_tenant(payload: TenantCreateIn, owner: User = Depends(require_owner),
 
 @router.patch("/{tenant_id}")
 def patch_tenant(tenant_id: str, payload: TenantPatchIn,
-                 owner: User = Depends(require_owner),
+                 user: User = Depends(require_perm("manage_settings")),
                  session: Session = Depends(get_session)):
-    """Edita delivery/tiempo/yape_qr/nombre — solo el dueño del local."""
-    check_tenant_owner(tenant_id, owner)
+    """Edita delivery/tiempo/yape_qr/nombre — capacidad manage_settings
+    (owner+admin, change roles-equipo), solo del propio local."""
+    check_tenant_owner(tenant_id, user)
     row = session.get(Tenant, tenant_id)
     if row is None:  # defensivo: el espejo lo tiene, la fila también debe
         raise HTTPException(404, "tenant?")
@@ -116,12 +118,12 @@ def qr_path(tenant_id: str) -> Path:
 
 @router.post("/{tenant_id}/qr")
 def upload_qr(tenant_id: str, file: UploadFile = File(...),
-              owner: User = Depends(require_owner)):
+              user: User = Depends(require_perm("manage_settings"))):
     """Sube el QR de Yape del local (png/jpg real por magic bytes + extensión,
     máx 2MB → 400). Se guarda como {id}_yape_qr.png; /api/payments/config lo
     anuncia con yape_qr_imagen=true. La verificación de pago sigue siendo
     monto exacto — el QR es solo la imagen que ve el cliente."""
-    check_tenant_owner(tenant_id, owner)
+    check_tenant_owner(tenant_id, user)
     contenido = file.file.read()
     if len(contenido) > QR_MAX_BYTES:
         raise HTTPException(400, "El QR pesa más de 2MB")

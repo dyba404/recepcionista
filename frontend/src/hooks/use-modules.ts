@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { api, apiErrorDetail } from '@/lib/api'
 import type { ModuleConfig } from '@/lib/types'
-import { useAuthStore } from '@/stores/auth-store'
 
 /**
  * Gating de módulos (contrato modulos-mvp):

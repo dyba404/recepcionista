@@ -1,16 +1,19 @@
 """Rutas de la carta (ex main.py + CRUD items de saas-cola-2).
 
-GET /api/menu público; POST /api/menu/toggle edita precio/disponibilidad
-(Bearer, como siempre); POST/DELETE /api/menu/items = CRUD de platos del
-owner (alta con id autogenerado m1, m2…, write-through vía persist).
+GET /api/menu público; POST /api/menu/toggle edita precio/disponibilidad;
+POST/DELETE /api/menu/items = CRUD de platos (alta con id autogenerado m1,
+m2…, write-through vía persist). Todo lo que muta exige manage_menu
+(owner+admin, change roles-equipo); los items además son del dueño del
+tenant (check_tenant_owner), el toggle sigue sin ese check como siempre.
 """
 import re
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from . import data, persist
-from .deps import check_tenant_owner, get_current_user, require_owner
+from .deps import check_tenant_owner
 from .models import User
+from .roles import require_perm
 from .schemas import MenuItemIn, MenuToggleIn
 
 router = APIRouter(prefix="/api/menu", tags=["menu"])
@@ -23,8 +26,9 @@ def menu(tenant: str):
     return {"tenant": data.TENANTS[tenant], "items": data.get_menu(tenant)}
 
 
-@router.post("/toggle", dependencies=[Depends(get_current_user)])
-def toggle(payload: MenuToggleIn):
+@router.post("/toggle")
+def toggle(payload: MenuToggleIn,
+           user: User = Depends(require_perm("manage_menu"))):
     t = payload.tenant
     if t not in data.MENUS:
         raise HTTPException(404, "tenant?")
@@ -62,8 +66,9 @@ def _next_item_id() -> str:
 
 
 @router.post("/items")
-def add_item(payload: MenuItemIn, owner: User = Depends(require_owner)):
-    check_tenant_owner(payload.tenant, owner)
+def add_item(payload: MenuItemIn,
+             user: User = Depends(require_perm("manage_menu"))):
+    check_tenant_owner(payload.tenant, user)
     if not (0 < payload.precio <= 9999):  # mismo rango que el toggle
         raise HTTPException(400, "Precio fuera de rango (0–9999)")
     item = {"id": _next_item_id(), "nombre": payload.nombre.strip(),
@@ -76,8 +81,9 @@ def add_item(payload: MenuItemIn, owner: User = Depends(require_owner)):
 
 
 @router.delete("/items")
-def delete_item(tenant: str, id: str, owner: User = Depends(require_owner)):
-    check_tenant_owner(tenant, owner)
+def delete_item(tenant: str, id: str,
+                user: User = Depends(require_perm("manage_menu"))):
+    check_tenant_owner(tenant, user)
     if next((x for x in data.MENUS.get(tenant, []) if x["id"] == id), None) is None:
         raise HTTPException(404, "item?")
     persist.menu_delete(tenant, id)  # fila + espejo fuera

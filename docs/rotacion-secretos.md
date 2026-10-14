@@ -19,4 +19,4 @@ en chat durante el desarrollo (2026-10-11/12). Antes de pasar a producción:
    de prueba end-to-end.
 
 Nada de esto rompe el flujo: todo el registro del canal es idempotente por
-diseño (ver openspec/changes/wizard-conexion-un-boton).
+diseño.

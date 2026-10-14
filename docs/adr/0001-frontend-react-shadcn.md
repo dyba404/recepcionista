@@ -25,5 +25,5 @@ paybox, QR).
 − Requiere toolchain Node en Windows (npm install por proyecto, ~1 vez).
 − Kanban/KDS/chat se arman con primitivas existentes (no hay template KDS en GitHub;
   hallazgo de la investigación) — el riesgo de improvisación se mitiga con specs
-  OpenSpec (frontends) y revisión visual con opencode musespark.
+  Specs de frontend y revisión visual.
 - Se documenta qué se toma de cada repo en cada ADR subsiguiente.

@@ -105,6 +105,5 @@ backend/
 frontend/            React 19 + Vite + TanStack (base shadcn-admin); el backend sirve su build
 static/              assets de la demo (imágenes)
 docs/                DESIGN.md, PRODUCT.md, adr/, deploy.md, rotacion-secretos.md
-openspec/            specs vigentes y changes en curso
 .github/workflows/   CI
 ```

@@ -12,7 +12,7 @@ python -m uvicorn backend.app.main:app --reload --port 8000
 cd backend
 pytest -q
 ```
-El caso de integración real con el LLM (opencode) va marcado con skipif y se corre solo con:
+El caso de integración real con el LLM va marcado con skipif y se corre solo con:
 ```bash
 RUN_LLM_TESTS=1 pytest -q
 ```

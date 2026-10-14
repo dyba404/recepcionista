@@ -1,7 +1,7 @@
 # DESIGN.md — mundo visual committed
 
 Mundo: **Brasa — cálido editorial** (rediseño 2026-10-10; reemplaza el mundo ink/lime).
-Modo impeccable por superficie: landing = Persuade; chat/panel/cocina/carta = Operate.
+Tono por superficie: landing = Persuade; chat/panel/cocina/carta = Operate.
 
 ## Tokens
 - `--paper:#FAF4E9` fondo crema · `--paper2:#FFFDF7` panel/tarjeta · `--paper3:#F2E9D8` entrante/inputs

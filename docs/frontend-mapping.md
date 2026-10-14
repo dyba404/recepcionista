@@ -10,10 +10,11 @@
 > - Datos: TanStack Query + `axios` (patrón ya probado en `features/carta/index.tsx`), validación de search params con `zod` (`routes/_authenticated/tasks/index.tsx`), toasts con `sonner`.
 > - Nav: alta en `frontend/src/components/layout/data/sidebar-data.ts` (`navGroups` → General).
 >
-> Fuentes de requisitos: `openspec/specs/frontends/spec.md` (5 rutas, mundo Brasa, polling con diff, sin build JS — criterio histórico del prototipo `static/`),
-> `openspec/specs/pedidos-kanban/spec.md` (ciclo nuevo→confirmado→cocina→delivery→entregado, anti Yape-falso 400, Kanban con diff por columna),
-> `openspec/specs/cocina-kds/spec.md` (cola confirmado/cocina, un tap avanza, tipografía grande),
-> `openspec/specs/atencion-chat/spec.md` (NLU + `POST /api/chat`) y `openspec/specs/pagos/spec.md` (paybox, QR Yape, Culqi link/webhook/charge).
+> Requisitos de cada superficie: 5 rutas (mundo Brasa, polling con diff), pedidos con ciclo
+> nuevo→confirmado→cocina→delivery→entregado (anti Yape-falso 400, Kanban con diff por columna),
+> KDS de cocina (cola confirmado/cocina, un tap avanza, tipografía grande), chat de atención
+> (NLU + `POST /api/chat`) y pagos (paybox, QR Yape, Culqi link/webhook/charge). El detalle del
+> dominio vive en `docs/DESIGN.md` y `docs/PRODUCT.md`.
 > Páginas que ya trae el template en `frontend/src/routes/_authenticated/`: `/` (Dashboard), `/tasks`, `/apps`, `/chats` (inbox genérico con `convo.json` fake), `/users`, `/carta`, `/settings/*`, `/errors/*`, `/help-center`.
 
 ---

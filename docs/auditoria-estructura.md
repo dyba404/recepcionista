@@ -28,7 +28,7 @@ Honesto y contra el código real. Ordenado por severidad para el SaaS.
 1. **Deploy no resuelto**: `frontend/dist` se construye pero el backend NO lo sirve; no hay Dockerfile/compose del stack completo; el túnel apunta al dev server en el puerto 8000 del host.
 2. **Migraciones**: tablas con `create_all` — un cambio de esquema en SQLite existente se rompe; falta alembic (o migraciones manuales documentadas).
 3. **`.env.example`** no existe (documentación de variables); `docs/rotacion-secretos.md` cubre rotación pero no inventario.
-4. **CI**: falta eslint en el job de frontend y no hay gate de cobertura; sin CI de openspec validate.
+4. **CI**: falta eslint en el job de frontend y no hay gate de cobertura.
 5. **Secretos en BD pendiente de cifrar** (cuando entren llaves Culqi por local).
 
 ## Orden recomendado

@@ -198,7 +198,7 @@ export interface CulqiChargeResult {
 
 /* ============================================================
  * Contrato "saas-cola-2": registro con negocio, staff y ledger
- * (openspec/changes/saas-cola-2/proposal.md)
+ *
  * ============================================================ */
 
 /** GET /api/staff?tenant= (owner/admin) → integrantes del local. */
@@ -232,7 +232,7 @@ export interface LedgerEntry {
 
 /* ============================================================
  * Contrato "modulos-mvp": módulos, WhatsApp, inbox, canned
- * (openspec/changes/modulos-mvp/proposal.md)
+ *
  * ============================================================ */
 
 /** GET /api/modules?tenant= → registro de módulos con toggles reales */
@@ -322,7 +322,7 @@ export interface WsMessage {
 
 /* ============================================================
  * Contrato "carta-inventario-bot": base de conocimiento y bot
- * configurable (openspec/changes/carta-inventario-bot/proposal.md)
+ * configurable
  * ============================================================ */
 
 /**
@@ -365,7 +365,7 @@ export interface BotConfig {
 /* ============================================================
  * Contrato "horarios-pausa-notif-perfil": horarios de atención,
  * pausa del bot, notificaciones y perfil editable
- * (openspec/changes/horarios-pausa-notif-perfil/proposal.md)
+ *
  * ============================================================ */
 
 /**
@@ -416,7 +416,7 @@ export interface NotificationItem {
 /* ============================================================
  * Contrato "endurecer-local": reportes CSV, invitaciones por
  * enlace, plantillas WhatsApp y planes del SaaS
- * (openspec/changes/endurecer-local/proposal.md)
+ *
  * ============================================================ */
 
 /**

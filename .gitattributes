@@ -1,0 +1,3 @@
+# Normalizar line endings: el repo se publica en LF,
+# sin diffs fantasma por CRLF en Windows.
+* text=auto eol=lf

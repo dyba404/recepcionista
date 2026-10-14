@@ -19,8 +19,9 @@ frontend/dist/
 sandbox/
 backend/sandbox/
 
-# --- Temporales de ZCode ---
-.zcode/tmp/
+# --- Tooling de agentes: skills/commands compartidas (fuente canónica: otro repo) ---
+.zcode/
+.opencode/
 
 # --- Archivos de sesión (logs de agentes); se preservan los archivados ---
 *.session

@@ -1,30 +1,38 @@
-# SaaS Recepcionista WhatsApp — Mockup + Prototipo funcional
-Foco comidas (3 locales demo), escalable a citas. Base conceptual: AgentKit + chatalog + GinoRobla.
+# Recepcionista — SaaS de pedidos por WhatsApp para restaurantes
 
-## Correr
+Reemplaza al recepcionista de un local de comida peruano: el cliente pide por WhatsApp,
+un bot con NLU determinista arma el pedido, cobra (Culqi sandbox o QR Yape, verificado
+server-side) y empuja los tickets al Kanban del dueño y al KDS de la cocina.
+
+Tres tenants demo: **faro** (cevichería), **brasa** (pollería) y **juana** (menú criollo).
+Base conceptual: AgentKit + chatalog + GinoRobla.
+
+## Características
+
+- **Bot de WhatsApp** sobre Meta Cloud API (webhook verificado; túnel cloudflared en el docker-compose).
+- **Cerebro híbrido**: NLU determinista dueña del estado de la conversación; el LLM solo
+  redacta lo que el NLU no clasifica. Nunca inventa precios (fuente: `menu.yaml`).
+- **Pagos verificados server-side**: cargo real en Culqi sandbox (webhook) y QR Yape con
+  match de monto exacto. Regla anti-fraude: *screenshot de voucher nunca = pagado*.
+- **Kanban del dueño** (Nuevo/Confirmado/Cocina/Delivery) y **KDS** de cocina.
+- **Multi-tenant** con roles (patrón Chatwoot), planes y trial.
+- **Secretos de integración cifrados en BD** (Fernet).
+
+## Stack
+
+FastAPI · SQLModel · SQLite · React 19 + Vite + TanStack Router/Query · shadcn/ui ·
+Docker (app + cloudflared) · pytest (216 funciones de test) · GitHub Actions CI
+
+## Correr el backend
+
 ```powershell
 pip install -r backend/requirements.txt
 python -m uvicorn backend.app.main:app --reload --port 8000
 ```
 Abrir http://127.0.0.1:8000
 
-## Estructura
-```
-backend/
-  app/               FastAPI: main, brain, logic, store, data
-  tests/             pytest (batería E2E de la API)
-  sandbox/           workspace de opencode (contenido transitorio)
-  requirements.txt
-  pyproject.toml     # ruff + pytest configurados
-frontend/            React + Vite + shadcn (base shadcn-admin) — en construcción
-static/              vistas legacy servidas por el backend hasta paridad
-docs/                DESIGN.md, PRODUCT.md, adr/
-openspec/            specs vigentes y changes en curso
-.opencode/  .zcode/  skills/commands compartidas (skills por junction)
-```
-
 ## Frontend
-En construcción (base shadcn-admin). Comandos previstos:
+
 ```bash
 cd frontend
 npm install
@@ -32,6 +40,7 @@ npm run dev   # http://localhost:5173 con proxy /api -> :8000
 ```
 
 ## Pago real (Culqi sandbox, opcional)
+
 Sin llaves, el botón "Culqi (SIMULADO)" marca pagado a propósito para demostrar la regla
 anti-fraude. Con llaves de prueba, el botón "Pagar con tarjeta" crea un cargo REAL en
 Culqi sandbox (tarjeta de test 4111 1111 1111 1111) verificado server-side:
@@ -42,14 +51,16 @@ python -m uvicorn backend.app.main:app --port 8000
 ```
 El QR de Yape es demo escaneable (sandbox); la verificación sigue siendo monto exacto.
 
-## Vistas (mockup flujo completo, servidas desde static/)
-* `/` landing + selector 3 locales
+## Vistas de demostración (static/)
+
+* `/` landing + selector de los 3 locales
 * `/chat` simulador WhatsApp cliente (RAG carta, carrito, pago)
 * `/panel` Kanban dueño (Nuevo/Confirmado/Cocina/Delivery)
 * `/cocina` KDS tablet (Preparando/Listo)
 * `/menu` admin carta (toggle, precio)
 
 ## API prototipo
+
 * `GET /api/tenants` `GET /api/menu?tenant=faro`
 * `POST /api/chat` {tenant, customer, message} -> {reply, cart, order_id}
 * `GET /api/track?tenant=&cliente=` estado real de los pedidos por nombre
@@ -60,11 +71,25 @@ El QR de Yape es demo escaneable (sandbox); la verificación sigue siendo monto 
 * `POST /api/demo/reset` recarga seed
 
 ## Reglas (papers)
+
 * Screenshot nunca = pagado. Solo webhook verificado o match exacto Yape.
-* RAG híbrido simple: keyword + categoría, nunca inventa precio (fuente menu.yaml en `backend/app/data.py`).
-* Cerebro híbrido (task-oriented dialogue): NLU determinista dueño del estado;
-  el LLM (opencode, muse-spark pineado) solo redacta lo que el NLU no clasifica.
+* RAG híbrido simple: keyword + categoría, nunca inventa precio.
+* NLU determinista dueña del estado; el LLM solo redacta lo no clasificado.
 * Dirección real: el chat la captura y queda en el pedido (visible en el Kanban).
 * Tracking por nombre: el cliente pregunta y recibe estado/pago/total de verdad.
 * Carta admin valida precios (0–9999) y reporta errores reales.
-* 3 locales: faro (cevichería), brasa (pollería), juana (menú criollo).
+
+## Estructura
+
+```
+backend/
+  app/               FastAPI (28 módulos): main, brain, bot, payments, whatsapp, crypto, ...
+  tests/             pytest — 216 funciones de test en 11 archivos
+  requirements.txt
+  pyproject.toml     # ruff + pytest configurados
+frontend/            React 19 + Vite + TanStack (base shadcn-admin)
+static/              vistas de demostración servidas por el backend
+docs/                DESIGN.md, PRODUCT.md, adr/, deploy.md, rotacion-secretos.md
+openspec/            specs vigentes y changes en curso
+.github/workflows/   CI
+```

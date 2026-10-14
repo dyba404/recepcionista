@@ -7,6 +7,18 @@ server-side) y empuja los tickets al Kanban del dueño y al KDS de la cocina.
 Tres tenants demo: **faro** (cevichería), **brasa** (pollería) y **juana** (menú criollo).
 Base conceptual: AgentKit + chatalog + GinoRobla.
 
+## Pantallas
+
+<p>
+  <img src="docs/screenshots/cliente.png" width="49%" alt="Chat del cliente: pedido por WhatsApp con respuestas del bot y carrito" />
+  <img src="docs/screenshots/panel.png" width="49%" alt="Kanban del dueño: Nuevo / Confirmado / Cocina / Delivery" />
+</p>
+<p>
+  <img src="docs/screenshots/cocina.png" width="49%" alt="KDS de cocina: tickets en preparación" />
+</p>
+
+*Capturas del demo sandbox (`POST /api/demo/reset`): pedidos, platos y cuentas ficticias.*
+
 ## Características
 
 - **Bot de WhatsApp** sobre Meta Cloud API (webhook verificado; túnel cloudflared en el docker-compose).
@@ -51,13 +63,16 @@ python -m uvicorn backend.app.main:app --port 8000
 ```
 El QR de Yape es demo escaneable (sandbox); la verificación sigue siendo monto exacto.
 
-## Vistas de demostración (static/)
+## Rutas de la app
 
-* `/` landing + selector de los 3 locales
-* `/chat` simulador WhatsApp cliente (RAG carta, carrito, pago)
-* `/panel` Kanban dueño (Nuevo/Confirmado/Cocina/Delivery)
-* `/cocina` KDS tablet (Preparando/Listo)
-* `/menu` admin carta (toggle, precio)
+El backend sirve el build del frontend (SPA React + TanStack Router) además del API:
+
+* `/cliente` — simulador del chat del cliente (RAG de la carta, carrito, pago)
+* `/panel` — Kanban del dueño (Nuevo/Confirmado/Cocina/Delivery)
+* `/cocina` — KDS de cocina (cola y estados de preparación)
+* `/carta` — administración de la carta (toggle, precios)
+* `/locales`, `/mensajeria`, `/configuracion` — gestión del tenant
+* `/sign-in` — login con cuentas demo listas para probar
 
 ## API prototipo
 
@@ -87,8 +102,8 @@ backend/
   tests/             pytest — 216 funciones de test en 11 archivos
   requirements.txt
   pyproject.toml     # ruff + pytest configurados
-frontend/            React 19 + Vite + TanStack (base shadcn-admin)
-static/              vistas de demostración servidas por el backend
+frontend/            React 19 + Vite + TanStack (base shadcn-admin); el backend sirve su build
+static/              assets de la demo (imágenes)
 docs/                DESIGN.md, PRODUCT.md, adr/, deploy.md, rotacion-secretos.md
 openspec/            specs vigentes y changes en curso
 .github/workflows/   CI

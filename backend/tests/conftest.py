@@ -19,6 +19,23 @@ os.environ["AUTH_DB_PATH"] = os.path.join(
 os.environ.setdefault("UPLOADS_DIR", os.path.join(
     tempfile.mkdtemp(prefix="faro-test-uploads-")))  # saas-cola-2: QR de tests
 
+# Tests herméticos (fix de CI): los tests de integración de WhatsApp
+# (webhook firmado, plantillas vía Graph, wizard de conexión) asumen el
+# entorno "conectado" que en desarrollo local da backend/.env. En CI no hay
+# .env, así que estos dummies se instalan ANTES de importar la app — y como
+# python-dotenv carga con override=False, el .env real nunca los pisa: la
+# suite corre siempre con los mismos valores, local o CI, sin secrets reales.
+# Los tests que ejercen el camino "sin secrets" hacen su propio
+# monkeypatch.delenv, que sigue funcionando igual.
+os.environ.setdefault("META_APP_ID", "1234567890")
+os.environ.setdefault("META_APP_SECRET", "test_app_secret")
+os.environ.setdefault("META_VERIFY_TOKEN", "test_verify_token")
+os.environ.setdefault("META_PERMANENT_TOKEN", "EAAtest_permanent_token")
+os.environ.setdefault("META_WABA_ID", "987654321")
+os.environ.setdefault("META_PHONE_NUMBER_ID", "555666777")
+os.environ.setdefault("WHATSAPP_QA_RECIPIENT", "51999999999")
+os.environ.setdefault("CF_TUNNEL_HOSTNAME", "wa.test.example")
+
 from app import horarios  # noqa: E402 — después de AUTH_DB_PATH, a propósito
 from app.main import app  # noqa: E402
 

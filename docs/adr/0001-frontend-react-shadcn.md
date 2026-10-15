@@ -4,9 +4,9 @@ Fecha: 2026-10-11 · Estado: aceptada · Decide: dueño (opción B elegida sobre
 recomendación A/Tabler)
 
 ## Contexto
-El prototipo (FastAPI + 5 HTML estáticos) se convierte en SaaS. Mandato: adaptar
-repos existentes, no improvisar. Investigación verificada (2026-10-11) comparó
-Tabler+SortableJS (sin build) vs React/Vite+shadcn/ui.
+El prototipo (FastAPI + 5 HTML estáticos) se convierte en SaaS. El criterio fue
+adaptar repos existentes en lugar de improvisar una UI propia. Se evaluaron dos
+caminos (2026-10-11): Tabler+SortableJS (sin build) vs React/Vite+shadcn/ui.
 
 ## Decisión
 Frontend **React + Vite + TypeScript + Tailwind + shadcn/ui**, adaptando

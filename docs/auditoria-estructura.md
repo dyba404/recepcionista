@@ -17,7 +17,7 @@ Honesto y contra el código real. Ordenado por severidad para el SaaS.
 5. **Seeds mezclados con código**: data.py es fuente de datos Y seed Y lógica. Separar seed/ (json o tabla).
 
 ## 3. Producto SaaS — lo que un cliente de verdad esperaría y NO existe
-1. **Onboarding de locales**: los 3 tenants están hardcodeados. No existe "crear mi local" (nombre, distrito, delivery, carta) ni dueño que se registre. Es EL gap de SaaS multi-tenant.
+1. **Onboarding de locales**: los 3 tenants están hardcodeados. No existe "crear mi local" (nombre, distrito, delivery, carta) ni un dueño que se registre. Ese es el vacío principal para ser un SaaS multi-tenant real.
 2. **Gestión de equipo**: no hay endpoint de usuarios → el dropdown "Asignar" del inbox usa los asignados existentes + el usuario actual. Falta CRUD de staff por local (invitar/rol).
 3. **Ledger de pagos**: los pagos viven como campos del pedido (pago, culqi_ref). Un SaaS de cobros necesita tabla `payment` (intento, gateway, referencia, monto, comisión, resultado, ts) — hoy no hay historial ni reintentos.
 4. **Registro de dueños**: endpoint /api/auth/register existe pero sin UI ni flujo (verificación de email, selección de plan).
